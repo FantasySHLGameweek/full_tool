@@ -1,0 +1,23 @@
+# Fantasy Rinken
+
+> Gratis, inofficiellt webbverktyg för Fantasy SHL (svenska hockeyligan SHL:s fantasyspel). Visar live-poäng per spelare, ligatabell, rivalernas lag och coachkort, byten och spelschema för kompisligor.
+
+Adress: https://fantasyrinken.se/
+
+## Vad verktyget gör
+- Live-poäng per spelare med poängkvitto
+- Ligatabell per omgång och totalt
+- Rivalernas lag, kaptener och coachkort
+- Byten med poängnetto
+- Kommande matcher och spelschema
+- Säsongens coachkort för alla lag
+
+## Så används det
+1. Logga in på fantasy.shl.se.
+2. Hämta ditt lag-ID (visas på sidan).
+3. Klistra in lag-ID:t i Fantasy Rinken.
+
+## Bra att veta
+- Gratis. Ingen inloggning i verktyget, inga lösenord, inga cookies.
+- Inofficiellt: ingen koppling till SHL eller Fantasy SHL. Poäng från Fantasy SHL, statistik från Statnet via shl.se.
+- Allt sparas lokalt i användarens webbläsare. Fungerar i mobilen och kan installeras som app.
