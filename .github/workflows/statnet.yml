@@ -1,0 +1,38 @@
+# GitHub Actions: hämtar SHL:s matchstatistik (Statnet via shl.se) och sparar data/statnet.json bredvid webbsidan.
+# Behövs eftersom shl.se inte tillåter anrop direkt från webbläsaren (CORS).
+# Läggs i repot som .github/workflows/statnet.yml. Kräver: Settings → Actions → General →
+# Workflow permissions = "Read and write permissions".
+# Bara öppen matchstatistik hämtas (inga lag, koder eller personuppgifter). Högst ett anrop per sekund.
+name: Statnet-statistik
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # var 10:e minut (GitHub kan fördröja körningen några minuter)
+  workflow_dispatch: {}       # kan också köras för hand under Actions
+
+permissions:
+  contents: write
+
+concurrency:
+  group: statnet
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Hämta statistik och räkna poäng
+        run: python3 statnet_sync.py --out data/statnet.json
+      - name: Spara om något ändrats
+        run: |
+          if git diff --quiet -- data/statnet.json && git ls-files --error-unmatch data/statnet.json >/dev/null 2>&1; then
+            echo "Oförändrat."
+          else
+            git config user.name "statnet-bot"
+            git config user.email "statnet-bot@users.noreply.github.com"
+            git add data/statnet.json
+            git commit -m "Statnet-statistik uppdaterad"
+            git push
+          fi
