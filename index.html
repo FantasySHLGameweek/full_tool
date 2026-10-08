@@ -717,7 +717,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 <aside class="ad-slot" data-slot="footer" aria-label="Annons" hidden></aside>
 <section id="selftest" class="card hidden"></section>
 
-<p class="foot">Fantasy Rinken v2.2.1 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
+<p class="foot">Fantasy Rinken v2.2.2 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
 </main>
 
 <dialog id="shareDlg" class="sharedlg">
@@ -3383,7 +3383,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
     S.planPer = localStorage.getItem('fr-plan-per') === 'f' ? 'f' : 's';
     S.schMode = localStorage.getItem('fr-sched-mode') === 'd' ? 'd' : 'n';
   } catch (e) { S.planN = 3; S.planPer = 's'; S.schMode = 'n'; }
-  S.planPos = 'F'; S.planMax = 0; S.planNotMine = true; S.planSort = { key: 'att', dir: -1 }; S.buySort = { key: 'exp', dir: -1 };
+  S.planPos = 'F'; S.planFwd = 'all'; S.planMax = 0; S.planNotMine = true; S.planSort = { key: 'att', dir: -1 }; S.buySort = { key: 'exp', dir: -1 };
   function loadPlan(force) {
     if (!FEATURES.planner) return;
     var P = S.plan || (S.plan = { state: 'idle' });
@@ -3426,7 +3426,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
   // Spelare som någon i ligan äger: pris, fantasy-ID, antal ägare och om de är dina.
   function knownPlayers() {
     var map = {}, list = entriesList(), own = FSL.ownership(list), me = S.entries[S.myUc];
-    list.forEach(function (e) { e.players.forEach(function (p) { var k = p.club_id + '|' + FSL.fold(p.name); if (!map[k]) map[k] = { value: p.value, pid: p.player_id, owners: (own[p.player_id] || []).length, mine: false }; }); });
+    list.forEach(function (e) { e.players.forEach(function (p) { var k = p.club_id + '|' + FSL.fold(p.name); if (!map[k]) map[k] = { value: p.value, pid: p.player_id, owners: (own[p.player_id] || []).length, mine: false, pos: p.position }; }); });
     if (me && me.status === 'ok') me.players.forEach(function (p) { var k = p.club_id + '|' + FSL.fold(p.name); if (map[k]) map[k].mine = true; });
     return map;
   }
@@ -3447,9 +3447,26 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
   }
   var PN_TEAM_COLS = [['n', 'Matcher', -1], ['att', 'Anfall', -1], ['def', 'Försvar', -1], ['diff', 'Svårighet', 1]];
   var PN_U_COLS = [['cf', 'CF%', -1], ['xgfp', 'xGF%', -1], ['xgf60', 'xGF/60', -1], ['xga60', 'xGA/60', 1], ['pdo', 'PDO', -1]];
+  // Förklaring till varje kolumn: visas som tooltip på rubriken och i raden "Förkortningar" under tabellen.
+  var PN_TIPS = {
+    n: 'Antal matcher i perioden', att: 'Anfall: väntade mål totalt i perioden (högt = bra för forwards)',
+    def: 'Försvar: väntade målvaktspoäng i perioden (vinst, nolla, insläppta mål, räddningar)', diff: 'Svårighet 1–5 i snitt (1 = lätta motståndare, 5 = svåra)',
+    cf: 'CF% (Corsi): lagets andel av alla skottförsök i fem mot fem. Över 50 = mest puck', xgfp: 'xGF%: lagets andel av de väntade målen i fem mot fem',
+    xgf60: 'xGF/60: väntade mål för per 60 minuter i fem mot fem', xga60: 'xGA/60: väntade mål emot per 60 minuter i fem mot fem (lågt = bra försvar)',
+    pdo: 'PDO: skottprocent + räddningsprocent. Runt 100 normalt; högt = tur, lågt = otur',
+    pos: 'Position i Fantasy SHL (CE center, LW vänsterytter, RW högerytter, LD/RD back, GK målvakt)', price: 'Pris i Fantasy SHL i mkr (bara spelare som någon i ligan äger)',
+    own: 'Hur många lag i din liga som äger spelaren', form: 'Form: fantasypoäng per match de senaste 5 matcherna', games: 'Antal matcher för spelarens lag i perioden',
+    icf: 'iCF/60: spelarens egna skottförsök (på mål, utanför, blockerade) per 60 minuter istid', ixg: 'ixG/match: spelarens egna väntade mål per match',
+    gax: 'Mål − ixG: gjorda mål minus väntade mål. Plus = fler mål än chanserna motiverar (tur eller vass skytt)',
+    sv: 'Rädd.%: räddningsprocent', gsax: 'GSAx: räddade mål jämfört med väntat (xG mot). Plus = bättre än snittet',
+    exp: 'Förv. poäng: förväntade fantasypoäng i perioden (poäng per match × motståndet × antal matcher)'
+  };
   function pnSortTh(key, label, st, attr) {
-    var on = st.key === key;
-    return '<th class="n"><button class="sortbtn' + (on ? ' on' : '') + '" ' + attr + '="' + key + '" aria-pressed="' + on + '">' + label + (on ? (st.dir < 0 ? ' ▼' : ' ▲') : '') + '</button></th>';
+    var on = st.key === key, tip = PN_TIPS[key] || '';
+    return '<th class="n"' + (tip ? ' title="' + esc(tip) + '"' : '') + '><button class="sortbtn' + (on ? ' on' : '') + '" ' + attr + '="' + key + '" aria-pressed="' + on + '"' + (tip ? ' aria-label="' + esc(label + ' – ' + tip) + '"' : '') + '>' + label + (on ? (st.dir < 0 ? ' ▼' : ' ▲') : '') + '</button></th>';
+  }
+  function pnLegend(keys, labels) {
+    return '<p class="small muted" style="margin:8px 0 0;line-height:1.5"><b>Förkortningar:</b> ' + keys.map(function (k, i) { return '<b>' + esc(labels[i]) + '</b> = ' + esc(PN_TIPS[k].replace(/^[^:]+: /, '')); }).join(' · ') + '. Tryck på en rubrik för att sortera (störst först, tryck igen för minst först).</p>';
   }
   function renderPlanner() {
     var el = $('#tab-planner'); if (!el) return;
@@ -3501,26 +3518,34 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
       '<span class="small muted">Källa per match: <span class="pn-src o">ODDS</span> spelbolagsodds' + (hasOdds ? '' : ' (inga just nu)') + ' · <span class="pn-src m">MODELL</span> egen modell (xG + resultat) · ' + esc(P.model.games || 0) + ' matcher · uppdaterad ' + esc(upd) + '</span></div></div>';
     var teamCard = '<div class="card"><h2>Bäst matcher – lag <span class="chip">omg ' + esc(rounds[0]) + (rounds.length > 1 ? '–' + esc(rounds[rounds.length - 1]) : '') + '</span></h2>' +
       '<p class="small muted" style="margin:0 0 8px"><b>Anfall</b> = väntade mål totalt i perioden (bra för forwards). <b>Försvar</b> = väntade målvaktspoäng (vinst, nolla, insläppta, räddningar). Rutorna: motståndare, H/B och vinstchans – färgen visar svårighet. Tryck på en rubrik för att sortera.</p>' +
-      '<div class="scroll"><table class="pn-t">' + head + '<tbody>' + body + '</tbody></table></div></div>';
+      '<div class="scroll"><table class="pn-t">' + head + '<tbody>' + body + '</tbody></table></div>' +
+      pnLegend(['diff', 'cf', 'xgfp', 'xgf60', 'xga60', 'pdo'], ['Svårighet', 'CF%', 'xGF%', 'xGF/60', 'xGA/60', 'PDO']) + '</div>';
     el.innerHTML = ctrl + teamCard + buyCard(teams, mu, sea) + planExplain();
   }
   function posGroup(p) { p = String(p || '').toUpperCase(); return p === 'GK' ? 'G' : /D$/.test(p) || p === 'D' ? 'D' : 'F'; }
   function buyCard(teams, mu, sea) {
     var known = knownPlayers(), G = S.planPos === 'G';
-    var rows = (sea.players || []).filter(function (r) { return posGroup(r.p) === S.planPos && r.s && r.s.gp; }).map(function (r) {
-      var k = known[r.t + '|' + FSL.fold(r.n)] || null, games = teams[r.t] ? teams[r.t].all : [];
+    // Position: Fantasy SHL:s egen när spelaren är känd i ligan, annars Statnets. Spelare utan istid (uttagna men inte spelat) räknas inte.
+    var rows = (sea.players || []).map(function (r) {
+      var k = known[r.t + '|' + FSL.fold(r.n)] || null;
+      return { r: r, k: k, pos: String((k && k.pos) || r.p || '').toUpperCase() };
+    }).filter(function (x) {
+      var r = x.r;
+      return r.s && r.s.gp && (r.p === 'GK' || r.s.toi > 0) && posGroup(x.pos) === S.planPos && (S.planPos !== 'F' || S.planFwd === 'all' || x.pos === S.planFwd);
+    }).map(function (x) {
+      var r = x.r, k = x.k, games = teams[r.t] ? teams[r.t].all : [];
       var teamGp = ((sea.teams[r.t] || {}).s || {}).gp;
-      return { r: r, k: k, price: k && k.value ? k.value / 1e6 : null, own: k ? k.owners : 0, mine: !!(k && k.mine), form: (r.f || r.s).ppg, games: games.length,
+      return { r: r, k: k, pos: x.pos, price: k && k.value ? k.value / 1e6 : null, own: k ? k.owners : 0, mine: !!(k && k.mine), form: (r.f || r.s).ppg, games: games.length,
         icf: r.s.icf60, ixg: r.s.ixgg, gax: r.s.gax, sv: r.gk ? r.gk.sv : null, gsax: r.gk ? r.gk.gsax : null, exp: FSL.expPoints(r, games, mu, teamGp), name: r.n, club: r.t };
     }).filter(function (x) { return (!S.planNotMine || !x.mine) && (!S.planMax || (x.price != null && x.price <= S.planMax)); });
     var st = S.buySort;
     rows.sort(function (a, b) { var x = a[st.key], y = b[st.key]; if (x == null || y == null) return x == null && y == null ? 0 : x == null ? 1 : -1; return (typeof x === 'string' ? x.localeCompare(y, 'sv') : x - y) * st.dir; });
     var th = function (k, l) { return pnSortTh(k, l, st, 'data-pnbs'); };
-    var head = '<thead><tr><th>Spelare</th><th>Klubb</th>' + th('price', 'Pris') + th('own', 'Ägs i ligan') + th('form', 'Form') + th('games', 'Matcher') +
+    var head = '<thead><tr><th>Spelare</th><th>Klubb</th><th title="' + esc(PN_TIPS.pos) + '">Pos</th>' + th('price', 'Pris') + th('own', 'Ägs i ligan') + th('form', 'Form') + th('games', 'Matcher') +
       (G ? th('sv', 'Rädd.%') + th('gsax', 'GSAx') : th('icf', 'iCF/60') + th('ixg', 'ixG/match') + th('gax', 'Mål − ixG')) + th('exp', 'Förv. poäng') + '</tr></thead>';
     var body = rows.slice(0, 25).map(function (x) {
       var tier = x.price != null ? FSL.priceTier(x.price * 1e6) : null;
-      return '<tr><td><button type="button" class="pn-plbtn" data-pnpl="' + esc(x.r.id) + '">' + esc(x.name) + '</button>' + (x.mine ? '<span class="pn-mine">din</span>' : '') + '</td><td title="' + esc(clubLabel(x.club)) + '">' + esc(x.club) + '</td>' +
+      return '<tr><td><button type="button" class="pn-plbtn" data-pnpl="' + esc(x.r.id) + '">' + esc(x.name) + '</button>' + (x.mine ? '<span class="pn-mine">din</span>' : '') + '</td><td title="' + esc(clubLabel(x.club)) + '">' + esc(x.club) + '</td><td>' + esc(x.pos) + '</td>' +
         '<td class="n">' + (x.price == null ? '<span class="muted">–</span>' : (tier ? '<span class="tdot t-' + tier + '"></span>' : '') + pnF(x.price, 1)) + '</td><td class="n">' + (x.own ? x.own + ' lag' : '<span class="muted">0</span>') + '</td>' +
         '<td class="n">' + pnF(x.form, 1) + '</td><td class="n">' + x.games + '</td>' +
         (G ? '<td class="n">' + pnF(x.sv, 1) + '</td><td class="n ' + cls(x.gsax) + '">' + pnS(x.gsax, 1) + '</td>'
@@ -3528,11 +3553,14 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
         '<td class="n"><span class="pn-exp">' + pnF(x.exp, 1) + '</span></td></tr>';
     }).join('');
     var seg = function (v, l) { return '<button type="button" data-pnpos="' + v + '" aria-pressed="' + (S.planPos === v) + '">' + l + '</button>'; };
-    return '<div class="card"><h2>Bästa spelarna att köpa</h2><div class="pn-ctrl"><span class="pn-seg">' + seg('F', 'Forwards') + seg('D', 'Backar') + seg('G', 'Målvakter') + '</span>' +
+    var fwd = S.planPos === 'F' ? '<label class="small" style="flex-direction:row;align-items:center;gap:6px">Position <select id="pnFwd">' +
+      [['all', 'alla forwards'], ['CE', 'center (CE)'], ['LW', 'vänsterytter (LW)'], ['RW', 'högerytter (RW)']].map(function (o) { return '<option value="' + o[0] + '"' + (S.planFwd === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' : '';
+    var legend = G ? pnLegend(['form', 'sv', 'gsax', 'exp'], ['Form', 'Rädd.%', 'GSAx', 'Förv. poäng']) : pnLegend(['pos', 'form', 'icf', 'ixg', 'gax', 'exp'], ['Pos', 'Form', 'iCF/60', 'ixG/match', 'Mål − ixG', 'Förv. poäng']);
+    return '<div class="card"><h2>Bästa spelarna att köpa</h2><div class="pn-ctrl"><span class="pn-seg">' + seg('F', 'Forwards') + seg('D', 'Backar') + seg('G', 'Målvakter') + '</span>' + fwd +
       '<label class="small" style="flex-direction:row;align-items:center;gap:6px">Maxpris <select id="pnMax">' + [[0, 'alla'], [12, '12,0 mkr'], [9, '9,0 mkr'], [6, '6,0 mkr']].map(function (o) { return '<option value="' + o[0] + '"' + (S.planMax === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' +
       '<label class="small" style="flex-direction:row;align-items:center;gap:6px;color:var(--fg)"><input type="checkbox" id="pnNotMine"' + (S.planNotMine ? ' checked' : '') + '> bara spelare jag inte har</label></div>' +
       '<p class="small muted" style="margin:0 0 6px">Förväntade poäng = poäng per match (säsong och form, med målturen delvis bortplockad via ixG) × lagets väntade mål eller målvaktspoäng i de kommande matcherna. Pris visas bara för spelare som någon i ligan äger – Fantasy SHL lämnar inte ut alla priser utan inloggning.</p>' +
-      (sea.players && sea.players.length ? (rows.length ? '<div class="scroll"><table class="pn-t">' + head + '<tbody>' + body + '</tbody></table></div>' : '<p class="muted small">Inga spelare med de här filtren.</p>')
+      (sea.players && sea.players.length ? (rows.length ? '<div class="scroll"><table class="pn-t">' + head + '<tbody>' + body + '</tbody></table></div>' + legend : '<p class="muted small">Inga spelare med de här filtren.</p>')
         : '<p class="muted small">Spelarstatistiken (season.json) saknas än.</p>') + '</div>';
   }
   function planExplain() {
@@ -3578,6 +3606,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && S.schFltOpen) closeSchDd(); });
   document.addEventListener('change', function (ev) {
     if (ev.target && ev.target.id === 'pnMax') { S.planMax = Number(ev.target.value) || 0; renderPlanner(); }
+    else if (ev.target && ev.target.id === 'pnFwd') { S.planFwd = ev.target.value || 'all'; renderPlanner(); }
     else if (ev.target && ev.target.id === 'pnNotMine') { S.planNotMine = !!ev.target.checked; renderPlanner(); }
   });
 
@@ -4019,8 +4048,9 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
       var ds = pn.dataset, store = function (k, v) { try { localStorage.setItem(k, String(v)); } catch (e) { /* ignoreras */ } };
       if (ds.pnn) { S.planN = Number(ds.pnn); store('fr-plan-n', S.planN); renderPlanner(); }
       else if (ds.pnper) { S.planPer = ds.pnper; store('fr-plan-per', S.planPer); renderPlanner(); }
-      else if (ds.pnsort) { var tk = ds.pnsort, tc = PN_TEAM_COLS.concat(PN_U_COLS).filter(function (c) { return c[0] === tk; })[0]; S.planSort = { key: tk, dir: S.planSort.key === tk ? -S.planSort.dir : (tc ? tc[2] : -1) }; renderPlanner(); }
-      else if (ds.pnbs) { var bk = ds.pnbs; S.buySort = { key: bk, dir: S.buySort.key === bk ? -S.buySort.dir : -1 }; renderPlanner(); }
+      // Första klicket på en kolumn sorterar alltid "bäst först" (även den förvalda); nästa klick vänder ordningen.
+      else if (ds.pnsort) { var tk = ds.pnsort, tc = PN_TEAM_COLS.concat(PN_U_COLS).filter(function (c) { return c[0] === tk; })[0]; S.planSort = { key: tk, dir: S.planSort.key === tk && S.planSort.user ? -S.planSort.dir : (tc ? tc[2] : -1), user: true }; renderPlanner(); }
+      else if (ds.pnbs) { var bk = ds.pnbs; S.buySort = { key: bk, dir: S.buySort.key === bk && S.buySort.user ? -S.buySort.dir : -1, user: true }; renderPlanner(); }
       else if (ds.pnpos) { S.planPos = ds.pnpos; S.buySort = { key: 'exp', dir: -1 }; renderPlanner(); }
       else if (ds.pnpl) showPlanPlayer(ds.pnpl);
       else if (ds.schmode) { S.schMode = ds.schmode; store('fr-sched-mode', S.schMode); if (S.schMode === 'd') loadPlan(); renderSchedule(); }
