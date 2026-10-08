@@ -519,14 +519,23 @@ def odds_get(path, params, key):
         return json.loads(r.read().decode("utf-8"))
 
 
+def is_shl(s):
+    """Bara SHL (inte HockeyAllsvenskan eller andra svenska serier): titeln "SHL" eller nyckeln sweden_hockey_league."""
+    k, title = str(s.get("key", "")).lower(), str(s.get("title", "")).strip().lower()
+    desc = str(s.get("description", "")).lower()
+    if "allsvenskan" in k + title + desc:
+        return False
+    return "hockey" in (str(s.get("group", "")) + k).lower() and (title == "shl" or "sweden_hockey_league" in k or "swedish hockey league" in desc)
+
+
 def fetch_odds(key, teams):
     """Använder bara en sport som oddstjänsten själv listar som SHL. Annars available=false."""
     sports = odds_get("/sports", {}, key)
-    cand = [s for s in sports if "hockey" in (s.get("group", "") + s.get("key", "")).lower()
-            and ("shl" in (s.get("title", "") + s.get("description", "")).lower() or "sweden" in s.get("key", "").lower())]
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    cand = [s for s in sports if is_shl(s)]
     if not cand:
-        return {"version": VERSION, "available": False, "updated": now, "reason": "oddstjänsten listar ingen SHL"}
+        swe = [s.get("key") for s in sports if "sweden" in str(s.get("key", "")).lower()]
+        return {"version": VERSION, "available": False, "updated": now, "reason": "oddstjänsten listar ingen SHL", "swedish": swe}
     sport = cand[0]["key"]
     events = odds_get(f"/sports/{sport}/odds", {"regions": "eu", "markets": "h2h,totals", "oddsFormat": "decimal"}, key)
     return {"version": VERSION, "available": True, "updated": now, "sport": sport, "games": parse_odds(events, teams)}
@@ -583,6 +592,10 @@ def selftest():
     t("lagnamn från oddstjänsten -> SHL-kod (Örebro, Skellefteå)", (match_team("Orebro HK", names) or match_team("Örebro HK", names), match_team("Skelleftea AIK", names) or match_team("Skellefteå AIK", names)), ("OHK", "SAIK"))
     od = parse_odds([{"home_team": "Färjestad BK", "away_team": "Örebro Hockey", "commence_time": "2026-10-10T17:00:00Z",
                       "bookmakers": [{"markets": [{"key": "h2h", "outcomes": [{"name": "Färjestad BK", "price": 2.1}, {"name": "Draw", "price": 4.2}, {"name": "Örebro Hockey", "price": 3.0}]}]}]}], names)
+    t("bara SHL väljs, inte HockeyAllsvenskan",
+      [is_shl({"key": "icehockey_sweden_allsvenskan", "group": "Ice Hockey", "title": "HockeyAllsvenskan"}),
+       is_shl({"key": "icehockey_sweden_hockey_league", "group": "Ice Hockey", "title": "SHL", "description": "Swedish Hockey League"}),
+       is_shl({"key": "icehockey_nhl", "group": "Ice Hockey", "title": "NHL"})], [False, True, False])
     t("tre-vägs odds (full tid) tolkas", (od[0]["home"], od[0]["away"], round(od[0]["pH"] + od[0]["pOT"] + od[0]["pA"], 6)), ("FBK", "OHK", 1.0))
     for ok, name, detail in res:
         print(("OK   " if ok else "FEL  ") + name + (f" – {detail}" if detail else ""))
