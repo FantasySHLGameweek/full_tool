@@ -21,6 +21,7 @@ import os
 import ssl
 import sys
 import unicodedata
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -631,16 +632,22 @@ def main():
         sys.exit(selftest())
     f = sn.Fetcher()
     if a.odds:
+        # odds.json skrivs alltid, med orsaken om det inte gick – så syns läget utan att man behöver läsa loggen.
         key = os.environ.get("ODDS_API_KEY", "").strip()
+        stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        fail = lambda why: {"version": VERSION, "available": False, "updated": stamp, "reason": why}
         if not key:
-            print("ODDS_API_KEY saknas – inga odds hämtas.")
-            return
-        sched = f(sn.SCHEDULE).get("gameInfo") or []
-        try:
-            data = fetch_odds(key, team_names(sched))
-        except (OSError, ValueError) as e:
-            print("Odds gick inte att hämta:", type(e).__name__)  # nyckeln skrivs aldrig ut
-            return
+            data = fail("ODDS_API_KEY saknas (GitHub Secret i det här repot)")
+        else:
+            try:
+                sched = f(sn.SCHEDULE).get("gameInfo") or []
+                data = fetch_odds(key, team_names(sched))
+            except urllib.error.HTTPError as e:  # nyckeln skrivs aldrig ut, bara HTTP-koden
+                hint = {401: "nyckeln godtogs inte – kontrollera att hela nyckeln är inlagd", 429: "gratisanropen är slut för månaden",
+                        422: "oddstjänsten godtog inte frågan"}.get(e.code, "oddstjänsten svarade med fel")
+                data = fail(f"HTTP {e.code}: {hint}")
+            except (OSError, ValueError) as e:
+                data = fail("gick inte att nå oddstjänsten (" + type(e).__name__ + ")")
         write(os.path.join(a.dir, "odds.json"), data)
         print("Skrev odds.json:", "tillgängliga" if data.get("available") else data.get("reason"), len(data.get("games", [])), "matcher")
         return
