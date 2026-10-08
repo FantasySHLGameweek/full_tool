@@ -1,7 +1,7 @@
 /* Service worker för Fantasy Rinken (installerbar app / PWA).
    Sidan och ikonerna sparas så att appen startar snabbt och även utan nät.
    Data (Statnet-filen och Fantasy SHL) hämtas alltid färskt och cachas aldrig här. */
-var VERSION = 'fr-2.1.5';
+var VERSION = 'fr-2.1.6';
 var SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-180.png'];
 
 self.addEventListener('install', function (e) {

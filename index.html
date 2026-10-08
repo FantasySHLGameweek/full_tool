@@ -82,6 +82,7 @@ button,input,select{font:inherit;color:inherit}
 .appbar.compact .tabs .ti{width:20px;height:20px}
 @media (max-width:520px){.tabs button{padding:7px 9px 9px;font-size:.72rem}.tabs .ti{width:22px;height:22px}}
 main{max-width:980px;margin:0 auto;padding:12px 12px 40px}
+html.fr-wide main{max-width:min(1800px,100vw)} /* tabellflikar (Spelschema, Rivalernas spelare): hela fönsterbredden på stora skärmar */
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 0 12px}
 .card h2{font-size:1rem;margin:0 0 8px}
 .sect{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:14px 2px 6px}
@@ -340,14 +341,19 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 .spin.sm{width:10px;height:10px;border-width:2px;display:inline-block;vertical-align:-1px}
 .spin{width:14px;height:14px;border:2px solid #a9c3ec44;border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite;flex:none}@keyframes spin{to{transform:rotate(360deg)}}
 /* Spelschema */
-.sched{border-collapse:separate;border-spacing:3px;width:100%;font-size:.8rem}
-.sched th{position:sticky;top:0;background:var(--card);z-index:1;text-align:center;padding:6px 4px;white-space:nowrap}
+/* Kompakt: antal + motståndare på en rad per ruta, så att alla 14 lag ryms på en skärm i helskärm. */
+.sched{border-collapse:separate;border-spacing:2px;width:100%;font-size:.76rem}
+.sched th{position:sticky;top:0;background:var(--card);z-index:1;text-align:center;padding:3px 4px;white-space:nowrap;line-height:1.25}
 .sched th.club,.sched td.club{text-align:left;position:sticky;left:0;background:var(--card);z-index:2;min-width:118px}
-.sched td{border:0;padding:0;vertical-align:top}
-.sched td.club{padding:6px 8px 6px 2px;white-space:nowrap}
-.sched td.club b{display:block;color:#fff;font-size:.85rem}
+.sched td{border:0;padding:0;vertical-align:middle;height:1px}
+.sched td.club{padding:2px 8px 2px 2px;white-space:nowrap;line-height:1.2}
+.sched td.club b{display:block;color:#fff;font-size:.82rem}
 .sched td.club span{font-size:.7rem;color:var(--acc)}
-.fx0,.fx1,.fx2,.fx3{border-radius:8px;padding:5px 6px;min-width:128px;height:100%}
+.fx0,.fx1,.fx2,.fx3{border-radius:6px;padding:3px 7px;height:100%;white-space:nowrap;display:flex;align-items:center;gap:0 4px}
+.schflt{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px}
+.schflt button{background:#ffffff0d;border:1px solid var(--line);border-radius:999px;color:var(--fg);font-size:.72rem;padding:3px 9px;cursor:pointer;min-height:28px}
+.schflt button[aria-pressed="false"]{opacity:.45;text-decoration:line-through}
+.schflt button.all{border-color:#a9c3ec55;color:var(--acc)}
 .fx0{background:#5a1f26}.fx0 .muted{color:#e9b8bd}  /* ingen match: mörkröd */.fx1{background:#a9c3ec17}  /* 1 match: isblå */
 .fx2{background:#15472c}.fx3{background:#2f7a50}  /* 2 matcher: mörkgrön, 3+: ljusare grön */
 .fxkey{display:inline-block;border-radius:6px;padding:0 7px;color:#fff;font-size:.72rem;line-height:1.6}.fxkey.k3{background:#2f7a50}.fxkey.k2{background:#15472c}.fxkey.k1{background:#a9c3ec26}.fxkey.k0{background:#5a1f26}
@@ -357,10 +363,11 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 .schlist .pl{font-size:.75rem;font-weight:600}.schlist .pl.on{color:var(--silver)}
 .schlist .pl.bn{color:var(--steel);font-weight:500}.schlist .pl i{font-style:normal;font-size:.65rem;border:1px solid var(--line);border-radius:4px;padding:0 3px;margin-left:2px}
 .sched tr.minebench td.club b{color:var(--steel)}
-.fxn{font-weight:800;font-size:.95rem;color:#fff;margin-right:4px}
-.fxo{display:block;color:var(--fg);white-space:nowrap;line-height:1.35}
+.fxn{font-weight:800;font-size:.9rem;color:#fff;margin-right:2px}
+.fxo{display:inline;color:var(--fg);white-space:nowrap;line-height:1.3}
+.fxo+.fxo::before{content:"· ";color:var(--muted)}
 .fxo i{font-style:normal;color:var(--muted);font-size:.7rem}
-.sched td.tot{text-align:center;font-weight:800;color:#fff;font-size:.95rem;padding-top:6px}
+.sched td.tot{text-align:center;font-weight:800;color:#fff;font-size:.9rem}
 .sched tr.mine td.club b{color:var(--acc)}
 .sharedlg{width:min(420px,94vw)}
 .qrbox{background:#fff;border-radius:14px;padding:10px;margin:0 auto 10px;max-width:300px}
@@ -667,7 +674,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 <aside class="ad-slot" data-slot="footer" aria-label="Annons" hidden></aside>
 <section id="selftest" class="card hidden"></section>
 
-<p class="foot">Fantasy Rinken v2.1.5 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
+<p class="foot">Fantasy Rinken v2.1.6 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
 </main>
 
 <dialog id="shareDlg" class="sharedlg">
@@ -2927,6 +2934,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 
   // Rivalernas spelare: spelare som minst en rival äger men som inte ger mig poäng (ej ägd, bänk eller ×0).
   try { S.rvN = parseInt(localStorage.getItem('fr-rv-n'), 10) || 0; } catch (e) { S.rvN = 0; }
+  try { var shv = JSON.parse(localStorage.getItem('fr-sched-hide') || '{}'); S.schHide = shv && typeof shv === 'object' && !Array.isArray(shv) ? shv : {}; } catch (e) { S.schHide = {}; } // dolda lag i Spelschema
   var RV_COLS = [['name', 'Spelare', 1], ['club', 'Klubb', 1], ['pos', 'Pos', 1], ['own', 'Ägs av', -1], ['pts', 'Poäng', -1], ['imp', 'Imp', 1], ['net', 'Netto', 1]]; // 1 = stigande som standard
   function renderRivals() {
     var el = $('#tab-rivals'); if (!el) return;
@@ -3148,6 +3156,12 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
       var total = cells.reduce(function (a, x) { return a + x.length; }, 0);
       return { code: c, name: clubLabel(c), cells: cells, total: total };
     }).sort(function (a, b) { return (b.total - a.total) || a.name.localeCompare(b.name, 'sv'); });
+    // Filter: lag som döljs i schemat (sparas i webbläsaren, nollställs av Glöm mig).
+    var hide = S.schHide || {}, nHidden = rows.filter(function (r) { return hide[r.code]; }).length;
+    var flt = '<div class="schflt" role="group" aria-label="Visa lag">' + rows.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'sv'); }).map(function (r) {
+      return '<button type="button" data-schhide="' + esc(r.code) + '" aria-pressed="' + !hide[r.code] + '" title="' + (hide[r.code] ? 'Visa' : 'Dölj') + ' ' + esc(r.name) + '">' + esc(r.name) + '</button>';
+    }).join('') + (nHidden ? '<button type="button" class="all" data-schhide="*">Visa alla (' + nHidden + ' dolda)</button>' : '') + '</div>';
+    rows = rows.filter(function (r) { return !hide[r.code]; });
     var head = '<tr><th class="club">Lag</th>' + weeks.map(function (n) {
       var r = roundObj(n) || {};
       var dl = roundDeadline(n), d = dl ? dl.at.toLocaleDateString('sv-SE', { timeZone: SE_TZ, day: 'numeric', month: 'short' }) + ' ' + dl.at.toLocaleTimeString('sv-SE', { timeZone: SE_TZ, hour: '2-digit', minute: '2-digit' }) : '';
@@ -3171,8 +3185,8 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
         }).join('') + '<td class="tot">' + r.total + '</td></tr>';
     }).join('');
     el.innerHTML = '<div class="card"><h2>Spelschema – pågående och kommande omgångar</h2><p class="small muted">Antal matcher och motståndare per lag. H = hemma, B = borta. ' +
-      '<span class="fxkey k3">3 matcher</span> <span class="fxkey k2">2 matcher</span> <span class="fxkey k1">1 match</span> <span class="fxkey k0">ingen match</span> Tryck på "på isen" för att se vilka av dina spelare det gäller. Scrolla i sidled för fler omgångar.' +
-      (pending ? ' Uppdaterar…' : '') + '</p><div class="scroll"><table class="sched"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div></div>';
+      '<span class="fxkey k3">3 matcher</span> <span class="fxkey k2">2 matcher</span> <span class="fxkey k1">1 match</span> <span class="fxkey k0">ingen match</span> Tryck på "på isen" för att se vilka av dina spelare det gäller. Tryck på ett lagnamn ovanför tabellen för att dölja eller visa laget. Scrolla i sidled för fler omgångar.' +
+      (pending ? ' Uppdaterar…' : '') + '</p>' + flt + (rows.length ? '' : '<p class="muted small">Alla lag är dolda.</p>') + '<div class="scroll"><table class="sched"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div></div>';
   }
 
   function renderUpcoming() {
@@ -3544,6 +3558,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
   /* ---------- Händelser ---------- */
   function selectTab(name) {
     S.tab = name;
+    document.documentElement.classList.toggle('fr-wide', name === 'schedule' || name === 'rivals');
     Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (x) { x.setAttribute('aria-selected', String(x.getAttribute('data-tab') === name)); });
     Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (x) { x.classList.toggle('hidden', x.id !== 'tab-' + name); });
     if (name === 'upcoming') renderUpcoming();
@@ -3636,6 +3651,13 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
     var ch = ev.target.closest('[data-choose]'); if (ch) { chooseMine(ch.getAttribute('data-choose')); selectTab('mine'); return; }
     if (ev.target.closest('[data-newsearch]')) { closeSettings(); clearMine(); return; }
     if (ev.target.closest('[data-gosearch]')) { closeSettings(); selectTab('mine'); setTimeout(function () { var i = $('#teamSearch'); if (i) i.focus(); }, 30); return; }
+    var sh = ev.target.closest('[data-schhide]');
+    if (sh) {
+      var hc = sh.getAttribute('data-schhide'); S.schHide = S.schHide || {};
+      if (hc === '*') S.schHide = {}; else if (S.schHide[hc]) delete S.schHide[hc]; else S.schHide[hc] = 1;
+      try { localStorage.setItem('fr-sched-hide', JSON.stringify(S.schHide)); } catch (e) { /* ignoreras */ }
+      renderSchedule(); return;
+    }
     var sc = ev.target.closest('[data-schedclub]'); if (sc) { var cc = sc.getAttribute('data-schedclub'); S.schedOpen = S.schedOpen || {}; S.schedOpen[cc] = !S.schedOpen[cc]; renderSchedule(); return; }
     var p = ev.target.closest('[data-pid]'); if (p) { showOwners(p.getAttribute('data-pid')); return; }
     var pk = ev.target.closest('[data-pickleague]'); if (pk) { var lid = pk.getAttribute('data-pickleague'); setHome(lid); $('#league').value = lid; S.myUc = null; S.rivalUc = null; S.sort = 'rank'; start({}); return; }
