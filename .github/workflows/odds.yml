@@ -1,0 +1,41 @@
+# GitHub Actions: spelbolagsodds för fullversionen (bara i fullversionens repo, inte på fantasyrinken.se).
+# Kräver en API-nyckel som GitHub Secret: Settings → Secrets and variables → Actions → New repository secret,
+# namn ODDS_API_KEY. Nyckeln skrivs aldrig i koden eller loggen. Utan nyckel gör jobbet ingenting.
+# Två körningar per dygn ≈ 60 anrop i månaden. Jobbet använder bara SHL om oddstjänsten själv listar den.
+name: Odds
+
+on:
+  schedule:
+    - cron: "5 7,16 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: odds
+  cancel-in-progress: false
+
+jobs:
+  odds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Hämta odds
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python3 plan_sync.py --odds --dir data
+      - name: Spara om något ändrats
+        run: |
+          if [ ! -f data/odds.json ]; then echo "Inga odds."; exit 0; fi
+          git add data/odds.json
+          if git diff --cached --quiet; then
+            echo "Oförändrat."
+          else
+            git config user.name "odds-bot"
+            git config user.email "odds-bot@users.noreply.github.com"
+            git commit -m "Odds uppdaterade"
+            git pull --rebase --autostash || true
+            git push
+          fi

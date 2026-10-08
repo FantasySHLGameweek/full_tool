@@ -1,0 +1,39 @@
+# GitHub Actions: planeringsdata för fullversionen (Corsi, xG, lagstyrka och matchsannolikheter).
+# Läggs i repot som .github/workflows/plan.yml bredvid statnet.yml. Kräver samma inställning:
+# Settings → Actions → General → Workflow permissions = "Read and write permissions".
+# Bara öppen matchstatistik från shl.se (inga lag, koder eller personuppgifter). Högst ett anrop per sekund.
+# Färdiga matcher hämtas en gång och sparas i data/plan-cache.json.
+name: Planeringsdata
+
+on:
+  schedule:
+    - cron: "23 */3 * * *"   # var tredje timme
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: plan
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Hämta nya matcher och räkna om modellen
+        run: python3 plan_sync.py --dir data
+      - name: Spara om något ändrats
+        run: |
+          git add data/plan-cache.json data/season.json data/model.json
+          if git diff --cached --quiet; then
+            echo "Oförändrat."
+          else
+            git config user.name "statnet-bot"
+            git config user.email "statnet-bot@users.noreply.github.com"
+            git commit -m "Planeringsdata uppdaterad"
+            git pull --rebase --autostash || true
+            git push
+          fi
