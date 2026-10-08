@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Hämta nya matcher och räkna om modellen
         run: python3 plan_sync.py --dir data
       - name: Spara om något ändrats

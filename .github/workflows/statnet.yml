@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Hämta statistik och räkna poäng
         run: python3 statnet_sync.py --out data/statnet.json
       - name: Spara om något ändrats

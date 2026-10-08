@@ -350,10 +350,21 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 .sched td.club b{display:block;color:#fff;font-size:.82rem}
 .sched td.club span{font-size:.7rem;color:var(--acc)}
 .fx0,.fx1,.fx2,.fx3{border-radius:6px;padding:3px 7px;height:100%;white-space:nowrap;display:flex;align-items:center;gap:0 4px}
-.schflt{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px}
-.schflt button{background:#ffffff0d;border:1px solid var(--line);border-radius:999px;color:var(--fg);font-size:.72rem;padding:3px 9px;cursor:pointer;min-height:28px}
-.schflt button[aria-pressed="false"]{opacity:.45;text-decoration:line-through}
-.schflt button.all{border-color:#a9c3ec55;color:var(--acc)}
+/* Lagfilter i spelschemat: rullgardin med kryssrutor */
+.schdd{position:relative;display:inline-block;margin:0 0 8px}
+.schdd>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:#ffffff0d;border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:.8rem;min-height:34px;user-select:none}
+.schdd>summary::-webkit-details-marker{display:none}
+.schdd>summary::after{content:"▾";color:var(--muted)}.schdd[open]>summary::after{content:"▴"}
+.schdd>summary:hover{border-color:var(--acc2)}
+.schdd-menu{position:absolute;z-index:30;top:calc(100% + 4px);left:0;min-width:230px;max-height:min(60vh,460px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px #000a;padding:6px}
+.schdd-act{display:flex;gap:6px;padding:2px 2px 6px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.schdd-act button{flex:1;font-size:.75rem;padding:5px 8px;color:var(--acc)}
+.schdd-it{display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;border-radius:8px;padding:7px 8px;font-size:.84rem;text-align:left;min-height:36px;color:var(--fg)}
+.schdd-it:hover{background:#ffffff0d}
+.schdd-it .cb{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--acc2);flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;line-height:1}
+.schdd-it[aria-checked="true"] .cb{background:var(--acc);border-color:var(--acc);color:#0a0d14}
+.schdd-it[aria-checked="true"] .cb::after{content:"✓";font-weight:900}
+.schdd-it[aria-checked="false"]{color:var(--muted)}
 /* Planering (fullversionen): svårighet 1 lätt – 5 svår, källmärkning, reglage */
 .pn-d1{background:#2f7a50}.pn-d2{background:#1d5a38}.pn-d3{background:#2a3347}.pn-d4{background:#6b2a30}.pn-d5{background:#8f2630}
 .pn-ctrl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin:0 0 6px}
@@ -706,7 +717,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 <aside class="ad-slot" data-slot="footer" aria-label="Annons" hidden></aside>
 <section id="selftest" class="card hidden"></section>
 
-<p class="foot">Fantasy Rinken v2.2.0 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
+<p class="foot">Fantasy Rinken v2.2.1 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
 </main>
 
 <dialog id="shareDlg" class="sharedlg">
@@ -3273,9 +3284,13 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
     }).sort(function (a, b) { return (b.total - a.total) || a.name.localeCompare(b.name, 'sv'); });
     // Filter: lag som döljs i schemat (sparas i webbläsaren, nollställs av Glöm mig).
     var hide = S.schHide || {}, nHidden = rows.filter(function (r) { return hide[r.code]; }).length;
-    var flt = '<div class="schflt" role="group" aria-label="Visa lag">' + rows.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'sv'); }).map(function (r) {
-      return '<button type="button" data-schhide="' + esc(r.code) + '" aria-pressed="' + !hide[r.code] + '" title="' + (hide[r.code] ? 'Visa' : 'Dölj') + ' ' + esc(r.name) + '">' + esc(r.name) + '</button>';
-    }).join('') + (nHidden ? '<button type="button" class="all" data-schhide="*">Visa alla (' + nHidden + ' dolda)</button>' : '') + '</div>';
+    // Rullgardin med en kryssruta per lag (stängs vid klick utanför). Öppen/stängd behålls när schemat ritas om.
+    S.schCodes = rows.map(function (r) { return r.code; });
+    var flt = '<details class="schdd"' + (S.schFltOpen ? ' open' : '') + '><summary>Visa lag: <b>' + (nHidden ? (rows.length - nHidden) + ' av ' + rows.length : 'alla ' + rows.length) + '</b></summary>' +
+      '<div class="schdd-menu" role="group" aria-label="Visa lag"><div class="schdd-act"><button type="button" data-schhide="*">Visa alla</button><button type="button" data-schhide="-">Dölj alla</button></div>' +
+      rows.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'sv'); }).map(function (r) {
+        return '<button type="button" class="schdd-it" data-schhide="' + esc(r.code) + '" role="checkbox" aria-checked="' + !hide[r.code] + '"><span class="cb" aria-hidden="true"></span>' + esc(r.name) + '</button>';
+      }).join('') + '</div></details>';
     rows = rows.filter(function (r) { return !hide[r.code]; });
     // Fullversionen: färga efter antal matcher (som tidigare) eller svårighet (vinstchans ur modell/odds).
     var diffMode = FEATURES.planner && S.schMode === 'd' && !!(S.plan && S.plan.model);
@@ -3556,6 +3571,11 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
     $('#ownersBody').innerHTML = planUnder(r.n, r.t) + upcomingFor(r.t);
     var d = $('#owners'); if (!d.open) { $('#ownersBody').scrollTop = 0; openDlg(d); }
   }
+  // Spelschemats lagfilter (rullgardin): kom ihåg öppen/stängd, stäng vid klick utanför eller Esc.
+  document.addEventListener('toggle', function (ev) { if (ev.target && ev.target.classList && ev.target.classList.contains('schdd')) S.schFltOpen = ev.target.open; }, true);
+  var closeSchDd = function () { S.schFltOpen = false; var d = document.querySelector('.schdd[open]'); if (d) d.open = false; };
+  document.addEventListener('click', function (ev) { if (S.schFltOpen && !ev.target.closest('.schdd')) closeSchDd(); });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && S.schFltOpen) closeSchDd(); });
   document.addEventListener('change', function (ev) {
     if (ev.target && ev.target.id === 'pnMax') { S.planMax = Number(ev.target.value) || 0; renderPlanner(); }
     else if (ev.target && ev.target.id === 'pnNotMine') { S.planNotMine = !!ev.target.checked; renderPlanner(); }
@@ -3985,8 +4005,10 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
     if (ev.target.closest('[data-gosearch]')) { closeSettings(); selectTab('mine'); setTimeout(function () { var i = $('#teamSearch'); if (i) i.focus(); }, 30); return; }
     var sh = ev.target.closest('[data-schhide]');
     if (sh) {
-      var hc = sh.getAttribute('data-schhide'); S.schHide = S.schHide || {};
-      if (hc === '*') S.schHide = {}; else if (S.schHide[hc]) delete S.schHide[hc]; else S.schHide[hc] = 1;
+      var hc = sh.getAttribute('data-schhide'); S.schHide = S.schHide || {}; S.schFltOpen = true;
+      if (hc === '*') S.schHide = {};
+      else if (hc === '-') { S.schHide = {}; (S.schCodes || []).forEach(function (c) { S.schHide[c] = 1; }); }
+      else if (S.schHide[hc]) delete S.schHide[hc]; else S.schHide[hc] = 1;
       try { localStorage.setItem('fr-sched-hide', JSON.stringify(S.schHide)); } catch (e) { /* ignoreras */ }
       renderSchedule(); return;
     }
