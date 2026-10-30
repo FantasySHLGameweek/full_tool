@@ -719,7 +719,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 <aside class="ad-slot" data-slot="footer" aria-label="Annons" hidden></aside>
 <section id="selftest" class="card hidden"></section>
 
-<p class="foot">Fantasy Rinken v2.2.6 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
+<p class="foot">Fantasy Rinken v2.2.7 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
 </main>
 
 <dialog id="shareDlg" class="sharedlg">
@@ -3198,8 +3198,8 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
       if (d.newCoach) return '<div class="minirow" style="display:block">' + head + '<span class="small muted">ny coach</span></div></div>';
       var free = cur.card && cur.card.code === 'FREE_EXCHANGE';
       var paid = cur.paid, pen = FSL.transferPenalty(d.in.length, free, paid); // Fantasy SHL:s avdrag; null = inte känt än (gissas aldrig)
-      var saved = !free && paid != null && d.in.length > 1 && paid < 10 * (d.in.length - 1); // Fantasy SHL drog mindre än "1 fritt byte": sparade byten eller omgången efter Fria byten
-      var badge = d.in.length ? '<span class="chip' + (free ? ' card' : '') + '">' + d.in.length + ' byte' + (d.in.length > 1 ? 'n' : '') + (free ? ' · Fria byten' : pen == null ? ' · <span class="muted">avdrag hämtas…</span>' : pen ? ' · <span class="neg">−' + pen + ' p</span>' : '') + (saved ? ' · extra fritt byte' : '') + '</span>' : '<span class="small muted">inga byten</span>';
+      var allFree = !free && pen === 0 && d.in.length > 1; // flera byten utan avdrag (sparat byte eller omgången efter Fria byten): alla var fria
+      var badge = d.in.length ? '<span class="chip' + (free ? ' card' : '') + '">' + d.in.length + (allFree ? ' fria byten' : ' byte' + (d.in.length > 1 ? 'n' : '')) + (free ? ' · Fria byten' : pen == null ? ' · <span class="muted">avdrag hämtas…</span>' : pen ? ' · <span class="neg">−' + pen + ' p</span>' : '') + '</span>' : '<span class="small muted">inga byten</span>';
       if (!d.in.length && !d.out.length) return '<div class="minirow" style="display:block' + (t.user_code === S.myUc ? ';background:#a9c3ec12' : '') + '">' + head + badge + '</div></div>';
       if (!S.demo && Number((roundObj(S.roundNo) || {}).points_processed) === 1) queueOfficial(d.in.concat(d.out)); // pågående omgång: Statnet räcker (inga anrop per spelare)
       var inP = d.in.map(weekPts), outP = d.out.map(weekPts);
