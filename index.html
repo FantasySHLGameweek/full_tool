@@ -634,6 +634,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
     <button data-tab="upcoming" aria-selected="false"><i class="ti ti-upcoming" aria-hidden="true"></i><span>Kommande</span></button>
     <button data-tab="schedule" aria-selected="false" class="hidden"><i class="ti ti-schedule" aria-hidden="true"></i><span>Spelschema</span></button>
     <button data-tab="planner" aria-selected="false" class="hidden"><i class="ti ti-schedule" aria-hidden="true"></i><span>Planering</span></button>
+    <button data-tab="feed" aria-selected="false" class="hidden"><i class="ti ti-schedule" aria-hidden="true"></i><span>Händelser</span></button>
     <button data-tab="season" aria-selected="false"><i class="ti ti-season" aria-hidden="true"></i><span>Säsong</span></button>
     <button data-tab="rivals" aria-selected="false" class="hidden"><i class="ti ti-rivals" aria-hidden="true"></i><span>Rivalernas spelare</span></button>
   </nav>
@@ -711,13 +712,14 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 <section id="tab-upcoming" class="tab hidden"></section>
 <section id="tab-schedule" class="tab hidden"></section>
 <section id="tab-planner" class="tab hidden"></section>
+<section id="tab-feed" class="tab hidden"></section>
 <section id="tab-season" class="tab hidden"></section>
 <section id="tab-rivals" class="tab hidden"></section>
 
 <aside class="ad-slot" data-slot="footer" aria-label="Annons" hidden></aside>
 <section id="selftest" class="card hidden"></section>
 
-<p class="foot">Fantasy Rinken v2.2.3 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
+<p class="foot">Fantasy Rinken v2.2.4 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
 </main>
 
 <dialog id="shareDlg" class="sharedlg">
@@ -1098,6 +1100,29 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
     var pos = function (x) { return x > 0; };
     return { best: pick('points', 1), worst: pick('points', -1), rise: pick('move', 1, pos), fall: pick('move', -1, function (x) { return x < 0; }),
       bench: pick('bench', 1, pos), penalty: pick('paid', 1, pos), transfer: pick('trNet', 1) };
+  }
+
+  /* ---------- Händelser (fullversionen): Fantasy SHL:s poänghändelser för spelare som ligan äger ---------- */
+  var FEED_LABEL = { GF: 'Mål', GC: 'Mål', GD: 'Mål', G: 'Mål', AF: 'Assist', AC: 'Assist', AD: 'Assist', A: 'Assist', SHG: 'Mål i numerärt underläge', GWG: 'Matchavgörande mål',
+    POP: 'Plus (på isen vid mål)', NEP: 'Minus (på isen vid insläppt)', TOI1: 'Istid 0–9:59', TOI2: 'Istid 10–19:59', TOI3: 'Istid 20+', TOI: 'Istid 40+', PPIM: 'Utvisning',
+    Hits: 'Tacklingar', BkS: 'Blockerade skott', SOG: 'Skott på mål', FOW: 'Tekningar', GA: 'Insläppt mål', GPI: 'Spelat match', SVS: 'Räddningar', W: 'Vinst', OTW: 'Vinst efter förl./straffar', OTL: 'Förlust efter förl./straffar', SO: 'Hållen nolla' };
+  var FEED_GOALS = { GF: 1, GC: 1, GD: 1, G: 1, AF: 1, AC: 1, AD: 1, A: 1, SHG: 1, GWG: 1 };
+  // Svarsraden -> bara de fält som behövs (sparas i webbläsaren). Borttagna rader och 0 poäng tas bort.
+  function feedSlim(r) {
+    if (!r || r.deleted_at || !Number(r.points)) return null;
+    var st = r.stat_type || {};
+    return { id: r.id, g: r.game_id, p: r.player_id, c: r.club_id, n: r.count, v: Number(r.points), t: r.created_at, a: st.abbreviation || '', l: st.stat_label || '' };
+  }
+  // Färdiga rader, nyast först: bara spelare som något lag äger. Impact = poäng × (min multiplikator − rivalernas snitt), som Imp i Rivalernas spelare.
+  function feedRows(events, entries, myUc) {
+    var byId = {};
+    impact(myUc, entries).forEach(function (r) { byId[r.player_id] = r; });
+    var hasMe = entries.some(function (e) { return e.uc === myUc; }), own = ownership(entries), info = playerInfo(entries);
+    return (events || []).filter(function (e) { return info[e.p]; }).map(function (e) {
+      var im = hasMe ? byId[e.p] : null, mult = im ? im.myMult : 0;
+      return { id: e.id, game: e.g, pid: e.p, name: info[e.p].name, club: e.c, at: e.t, ab: e.a, label: FEED_LABEL[e.a] || e.l || e.a, count: e.n, points: e.v,
+        owners: (own[e.p] || []).length, mine: !!(im && im.owned), mult: mult, myPts: e.v * mult, imp: im ? e.v * im.importance : null, goal: !!FEED_GOALS[e.a] };
+    }).sort(function (a, b) { return String(b.at).localeCompare(String(a.at)) || b.id - a.id; });
   }
 
   /* ---------- Planering (fullversionen): matchstyrka ur egen modell (xG + resultat) och spelbolagsodds ---------- */
@@ -1502,6 +1527,14 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
     t('höjdpunkter: bäst med delad plats', [wh.best.value, wh.best.teams], [50, ['A', 'C']]);
     t('höjdpunkter: sämst, lyft, tapp', [wh.worst.teams, wh.rise.value, wh.fall.teams], [['B'], 2, ['B']]);
     t('höjdpunkter: bänk, avdrag, bästa byte', [wh.bench.teams, wh.penalty.value, wh.transfer.teams], [['A', 'B'], 20, ['A']]);
+    // Händelser: bara ägda spelare, borttagna rader och 0 p bort, Impact-tecken, sortering, svenska namn
+    t('händelser: borttagen rad och 0 p tas bort', [feedSlim({ deleted_at: 'x', points: 4 }), feedSlim({ points: '0' }), feedSlim({ id: 1, points: '4', stat_type: { abbreviation: 'GF' } }).v], [null, null, 4]);
+    var fe = [E('me', [[1, 2, 5], [2, 1, 3]]), E('a', [[1, 1, 5], [3, 2, 4]]), E('b', [[3, 1, 4]])];
+    var fr = feedRows([{ id: 1, g: 9, p: 1, c: 'AAA', n: 1, v: 4, t: '2026-10-01T18:00:00Z', a: 'GF' }, { id: 2, g: 9, p: 3, c: 'BBB', n: 1, v: 3, t: '2026-10-01T18:05:00Z', a: 'AC' },
+      { id: 3, g: 9, p: 99, c: 'CCC', n: 1, v: 4, t: '2026-10-01T18:06:00Z', a: 'GF' }, { id: 4, g: 9, p: 2, c: 'AAA', n: 2, v: -1, t: '2026-10-01T18:05:00Z', a: 'XYZ', l: 'Okänd' }], fe, 'me');
+    t('händelser: ingen ägare = ingen rad, nyast först (lika tid: högst id)', fr.map(function (r) { return r.pid; }), [2, 3, 1]);
+    t('händelser: min kapten ger plus-Impact, rivalernas spelare minus', [fr[2].imp, fr[1].imp, fr[2].mine, fr[1].mine], [6, -4.5, true, false]);
+    t('händelser: mina poäng räknar kaptenen, svenskt namn eller Fantasy SHL:s', [fr[2].myPts, fr[2].label, fr[1].label, fr[0].label, fr[2].goal], [8, 'Mål', 'Assist', 'Okänd', true]);
     // Planering: modell, odds, målvaktspoäng, svårighet, förväntade poäng
     var mp = matchProbs(3.2, 2.4);
     t('planering: sannolikheter summerar till 1', Math.round((mp.pH + mp.pA + mp.pOT) * 1e6) / 1e6, 1);
@@ -1882,7 +1915,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 
   var FSL = { SCORING: SCORING, breakdownRows: breakdownRows, mergeOfficial: mergeOfficial, snIndex: snIndex, snLookup: snLookup, mmss: mmss, qrMatrix: qrMatrix, qrSvg: qrSvg, stripSensitive: stripSensitive, CARDS: CARDS, normCard: normCard, activeCard: activeCard, usedCards: usedCards, seasonCards: seasonCards, flattenLineup: flattenLineup,
     posClass: posClass, ageAt: ageAt, computeMultiplier: computeMultiplier, effectiveMultiplier: effectiveMultiplier, basePoints: basePoints,
-    prepareTeam: prepareTeam, inferCard: inferCard, transfersDiff: transfersDiff, transferGain: transferGain, pickMyTeam: pickMyTeam, ownership: ownership, impact: impact, rivalPlayers: rivalPlayers, weekHighlights: weekHighlights, matchProbs: matchProbs, modelGame: modelGame, blendOdds: blendOdds, planSide: planSide, gkPoints: gkPoints, fdr: fdr, expPoints: expPoints, fold: fold, squadPolicy: squadPolicy, ageTag: ageTag, priceTier: priceTier, chooseLeague: chooseLeague, rivalCompare: rivalCompare,
+    prepareTeam: prepareTeam, inferCard: inferCard, transfersDiff: transfersDiff, transferGain: transferGain, pickMyTeam: pickMyTeam, ownership: ownership, impact: impact, rivalPlayers: rivalPlayers, weekHighlights: weekHighlights, feedSlim: feedSlim, feedRows: feedRows, matchProbs: matchProbs, modelGame: modelGame, blendOdds: blendOdds, planSide: planSide, gkPoints: gkPoints, fdr: fdr, expPoints: expPoints, fold: fold, squadPolicy: squadPolicy, ageTag: ageTag, priceTier: priceTier, chooseLeague: chooseLeague, rivalCompare: rivalCompare,
     parseShare: parseShare, parseAnyInput: parseAnyInput, buildShareQuery: buildShareQuery, customLeagues: customLeagues, searchTeams: searchTeams, MAX_LEAGUE_TEAMS: MAX_LEAGUE_TEAMS, makeDemo: makeDemo, selftest: selftest };
   root.FSL = FSL;
   if (typeof module !== 'undefined' && module.exports) module.exports = FSL;
@@ -1899,7 +1932,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
   // Utgåva: bygg.py sätter window.FR_EDITION = 'full' i din egen version (alla funktioner). Utan den: publik (GitHub/kompisar).
   var SE_TZ = 'Europe/Stockholm'; // alla tider visas i svensk tid, oavsett besökarens dator
   var FULL = window.FR_EDITION === 'full';
-  var FEATURES = { impact: false, nameSearch: false, rival: false, share: false, schedule: FULL, seasonNext: FULL, rivals: FULL, planner: FULL };
+  var FEATURES = { impact: false, nameSearch: false, rival: false, share: false, schedule: FULL, seasonNext: FULL, rivals: FULL, planner: FULL, feed: FULL };
   // Användningsstatistik (bara publika utgåvan, när bygg.json har "goatcounter"): ett GET-anrop (bild) till GoatCounter
   // med LAGNAMN och liga när någon tar fram sitt lag. Aldrig user_code, inga cookies. Högst en gång per lag och webbläsarsession.
   var STATS = typeof window.FR_STATS === 'string' && /^[a-z0-9-]{2,50}$/.test(window.FR_STATS) ? window.FR_STATS : null;
@@ -1916,6 +1949,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
   if (FULL) { var footEl = document.querySelector('.foot'); if (footEl) footEl.innerHTML = footEl.innerHTML.replace(/(Fantasy Rinken v[0-9.]+)/, '$1 · Fullversion'); }
   if (FEATURES.rivals) { var rvBtn = document.querySelector('[data-tab="rivals"]'); if (rvBtn) rvBtn.classList.remove('hidden'); }
   if (FEATURES.planner) { var plnBtn = document.querySelector('[data-tab="planner"]'); if (plnBtn) plnBtn.classList.remove('hidden'); }
+  if (FEATURES.feed) { var feedBtn = document.querySelector('[data-tab="feed"]'); if (feedBtn) feedBtn.classList.remove('hidden'); }
   if (FEATURES.schedule) { var schBtn = document.querySelector('[data-tab="schedule"]'); if (schBtn) schBtn.classList.remove('hidden'); } // "Skadar mig" och startsidans namnsökning: avstängda tills vidare
   // Låst liga (sätts av bygg_webb.py --league). Då visas och används bara den ligan.
   var FIXED = (function (x) {
@@ -2812,7 +2846,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
   /* ---------- Rendering ---------- */
   var renderPending = false;
   function scheduleRender() { if (renderPending) return; renderPending = true; setTimeout(function () { renderPending = false; renderAll(); }, 150); }
-  function renderAll() { renderMine(); renderLeague(); renderRival(); renderImpact(); renderTransfers(); if (S.tab === 'upcoming') renderUpcoming(); if (S.tab === 'schedule') renderSchedule(); if (S.tab === 'season') renderSeason(); if (S.tab === 'rivals') renderRivals(); if (S.tab === 'planner') renderPlanner(); }
+  function renderAll() { renderMine(); renderLeague(); renderRival(); renderImpact(); renderTransfers(); if (S.tab === 'upcoming') renderUpcoming(); if (S.tab === 'schedule') renderSchedule(); if (S.tab === 'season') renderSeason(); if (S.tab === 'rivals') renderRivals(); if (S.tab === 'planner') renderPlanner(); if (S.tab === 'feed') { loadFeed(); renderFeed(); } }
 
   function renderLeagueName() {
     $('#leagueLabel').textContent = S.leagueName || (FIXED ? FIXED.name : (S.league ? 'Liga ' + S.league : 'Kompisligan'));
@@ -3373,6 +3407,127 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
     el.innerHTML = html || '<div class="card muted">Inga kommande matcher publicerade ännu.</div>';
   }
 
+  /* ---------- Händelser (fullversionen): My Feed för ligan ---------- */
+  // Källa: /fantasy-points/events (officiella poäng, nya mål syns inom cirka 1–2 minuter). Stigande id; event_from ger bara nya rader.
+  // Enstaka rader ändras i efterhand, därför läses omgången om var 10:e minut under live och en sista gång när den är färdigräknad (då sparas den).
+  var FEED_PATH = '/fantasy-points/events', FEED_PER = 500, FEED_MAX_PAGES = 40, FEED_FULL_MS = 10 * 60000, FEED_SHOW = 200;
+  S.feedF = 'all'; S.feedClub = ''; S.feedShow = FEED_SHOW;
+  function feedKey(n) { return 'fr-feed:' + S.league + ':' + n; }
+  function feedPage(page, from, per) { return apiGet(FEED_PATH, { per_page: per || FEED_PER, page: page, event_from: from || 1, user_code: S.uc }, { fresh: true }); }
+  function loadFeed(opts) {
+    opts = opts || {};
+    if (!FEATURES.feed || !S.roundNo || !S.uc) return;
+    var n = Number(S.roundNo), round = roundObj(n), done = !!round && Number(round.points_processed) === 1, token = S.token, F = S.feed;
+    if (!F || F.round !== n || F.league !== S.league) {
+      F = S.feed = { round: n, league: S.league, rows: {}, maxId: 0, at: 0, fullAt: 0, busy: false, err: '', final: false, note: '' };
+      var c = done ? lsGet(feedKey(n)) : null;
+      if (c && Array.isArray(c.rows)) { c.rows.forEach(function (e) { F.rows[e.id] = e; }); F.final = true; F.at = c.at || 0; }
+    }
+    if (F.final || F.busy) return;
+    if (F.at && !opts.force && !(done && !F.final) && !liveNow()) return; // inget nytt väntas: bara ⟳ Uppdatera hämtar
+    if (F.at && !opts.force && Date.now() - F.at < 55000) return;
+    var alive = function () { return token === S.token && S.feed === F; };
+    var stop = function (msg) { F.busy = false; F.note = ''; if (msg != null) F.err = msg; if (S.tab === 'feed') renderFeed(); };
+    var fail = function (r) { if (alive()) stop(apiErrText(r)); else F.busy = false; };
+    F.busy = true; F.err = '';
+    var params = { per_page: 500, game_week: n, sort_by: 'start_time', user_code: S.uc };
+    var gamesP = S.games[n] && S.games[n].length && S.games[n][0].id != null ? Promise.resolve(S.games[n]) : apiGet('/games', params, { store: true }).then(function (x) {
+      if (x.status === 200) S.games[n] = listOf(resultOf(x)).sort(function (a, b) { return Date.parse(a.start_time) - Date.parse(b.start_time); });
+      return S.games[n] || [];
+    });
+    gamesP.then(function (games) {
+      if (!alive()) { F.busy = false; return; }
+      var ids = {}, first = null;
+      games.forEach(function (g) { ids[g.id] = 1; var t = Date.parse(g.start_time); if (first == null || t < first) first = t; });
+      if (!games.length || first > Date.now()) { F.at = Date.now(); return stop(); } // omgången har inte börjat
+      var finish = function (full) {
+        F.at = Date.now(); if (full) F.fullAt = F.at;
+        if (done && full) {
+          F.final = true;
+          // Sparas för gott när alla trupper är lästa (bara spelare som ligan äger).
+          var list = entriesList();
+          if (S.teams.every(function (t) { return S.entries[t.user_code] && S.entries[t.user_code].status !== 'wait'; })) {
+            var info = {}; list.forEach(function (e) { e.players.forEach(function (p) { info[p.player_id] = 1; }); });
+            lsSet(feedKey(n), { at: F.at, rows: Object.keys(F.rows).map(function (k) { return F.rows[k]; }).filter(function (e) { return info[e.p]; }) });
+          }
+        }
+        stop();
+      };
+      var take = function (rows, into) {
+        rows.forEach(function (r) { if (r.id > F.maxId) F.maxId = r.id; if (!ids[r.game_id]) return; var s = FSL.feedSlim(r); if (s) into[s.id] = s; else delete into[r.id]; });
+      };
+      var full = !F.fullAt || done || Date.now() - F.fullAt > FEED_FULL_MS;
+      if (!full) { // bara nya rader
+        var step = function (page) {
+          return feedPage(page, F.maxId + 1).then(function (r) {
+            if (!alive()) { F.busy = false; return; }
+            if (r.status !== 200) return fail(r);
+            var res = resultOf(r) || {};
+            take(listOf(res), F.rows);
+            if (page < Number(res.last_page || 1) && page < 5) return step(page + 1);
+            finish(false);
+          });
+        };
+        return step(1);
+      }
+      // Hela omgången: bakifrån tills raderna är äldre än omgångens första match.
+      return feedPage(1, 1, 1).then(function (r0) {
+        if (!alive()) { F.busy = false; return; }
+        if (r0.status !== 200) return fail(r0);
+        var total = Number((resultOf(r0) || {}).total) || 0, page = Math.ceil(total / FEED_PER), into = {}, count = 0;
+        if (!total) { F.rows = {}; return finish(true); }
+        var back = function () {
+          return feedPage(page, 1).then(function (r) {
+            if (!alive()) { F.busy = false; return; }
+            if (r.status !== 200) return fail(r);
+            var rows = listOf(resultOf(r)), newest = rows.reduce(function (m, x) { var t = Date.parse(x.created_at); return t > m ? t : m; }, 0);
+            take(rows, into); count++;
+            F.note = 'Läser händelser… sida ' + count; if (S.tab === 'feed') renderFeed();
+            page--;
+            if (page >= 1 && newest >= first && count < FEED_MAX_PAGES) return back();
+            F.rows = into; finish(true);
+          });
+        };
+        return back();
+      });
+    }).catch(function () { F.busy = false; if (S.feed === F && S.tab === 'feed') { F.err = 'Händelserna gick inte att läsa just nu. Försök igen med ⟳ Uppdatera.'; renderFeed(); } });
+  }
+  function renderFeed() {
+    var el = $('#tab-feed'); if (!el) return;
+    if (!FEATURES.feed || !S.teams.length) { el.innerHTML = ''; return; }
+    var F = S.feed || { rows: {} }, n = S.roundNo, list = entriesList();
+    var all = FSL.feedRows(Object.keys(F.rows).map(function (k) { return F.rows[k]; }), list, S.myUc);
+    var clubs = {}; all.forEach(function (r) { clubs[r.club] = 1; });
+    var rows = all.filter(function (r) { return (S.feedF === 'all' || (S.feedF === 'goals' && r.goal) || (S.feedF === 'mine' && r.mine)) && (!S.feedClub || r.club === S.feedClub); });
+    var hasMe = !!(S.myUc && S.entries[S.myUc] && S.entries[S.myUc].status === 'ok');
+    var impSum = all.reduce(function (s, r) { return s + (r.imp || 0); }, 0), mySum = all.reduce(function (s, r) { return s + r.myPts; }, 0);
+    var games = {}; (S.games[n] || []).forEach(function (g) { games[g.id] = g; });
+    var seg = function (v, l) { return '<button type="button" data-feedf="' + v + '" aria-pressed="' + (S.feedF === v) + '">' + l + '</button>'; };
+    var when = function (iso) { var d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('sv-SE', { timeZone: SE_TZ, weekday: 'short', hour: '2-digit', minute: '2-digit' }); };
+    var body = rows.slice(0, S.feedShow).map(function (r) {
+      var g = games[r.game];
+      var pts = (r.points > 0 ? '+' : '−') + Math.abs(r.points) + ' p';
+      return '<tr' + (r.mine ? ' class="me"' : '') + '><td>' + esc(when(r.at)) + (g ? '<div class="small muted">' + esc(g.home_team_id) + '–' + esc(g.away_team_id) + '</div>' : '') + '</td>' +
+        '<td><button type="button" class="pn-plbtn" data-pid="' + esc(r.pid) + '">' + esc(r.name) + '</button>' + (r.mine ? '<span class="pn-mine">din' + (r.mult > 1 ? ' ×' + r.mult : '') + '</span>' : '') +
+        '<div class="small muted">' + esc(r.club) + ' · ägs av ' + r.owners + '</div></td>' +
+        '<td>' + esc(r.label) + (r.count > 1 && !/^TOI/.test(r.ab) ? ' <span class="muted">(' + esc(r.count) + ')</span>' : '') + '</td>' +
+        '<td class="n ' + cls(r.points) + '"><b>' + pts + '</b></td><td class="n ' + cls(r.imp) + '">' + (r.imp == null ? '–' : pnS(r.imp, 1)) + '</td></tr>';
+    }).join('');
+    var upd = F.at ? new Date(F.at).toLocaleTimeString('sv-SE', { timeZone: SE_TZ, hour: '2-digit', minute: '2-digit' }) : '';
+    var status = F.err ? '<div class="warn small">' + esc(F.err) + '</div>' : '';
+    var waiting = F.busy || (!F.at && !F.err);
+    el.innerHTML = '<div class="card"><h2>Händelser · omg ' + esc(n) + '</h2>' +
+      '<p style="margin:0 0 8px">' + (hasMe ? 'Impact, du mot ligan: <b class="' + cls(impSum) + '">' + pnS(impSum, 1) + '</b> · Dina poäng: <b class="' + cls(mySum) + '">' + pnS(mySum, 0) + '</b> · ' : '') +
+      '<span class="small muted">' + (waiting ? '<span class="spin sm"></span> ' + esc(F.note || 'Hämtar händelser…') : (upd ? 'Uppdaterad ' + esc(upd) : '')) + '</span></p>' + status +
+      '<div class="pn-ctrl"><span class="pn-seg">' + seg('all', 'Alla') + seg('goals', 'Mål och assist') + seg('mine', 'Mina spelare') + '</span>' +
+      '<label class="small" style="flex-direction:row;align-items:center;gap:6px">SHL-lag <select id="feedClub"><option value="">alla</option>' +
+      Object.keys(clubs).sort().map(function (c) { return '<option value="' + esc(c) + '"' + (S.feedClub === c ? ' selected' : '') + '>' + esc(clubLabel(c)) + '</option>'; }).join('') + '</select></label></div>' +
+      (rows.length ? '<div class="scroll"><table class="pn-t"><thead><tr><th>Tid</th><th>Spelare</th><th>Händelse</th><th class="n">Poäng</th><th class="n" title="Vad händelsen betyder för dig mot ligasnittet">Impact</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
+        (rows.length > S.feedShow ? '<p style="text-align:center;margin:10px 0 0"><button type="button" data-feedmore>Visa fler (' + (rows.length - S.feedShow) + ' till)</button></p>' : '')
+        : (waiting ? '' : '<p class="muted small">' + (all.length ? 'Inga händelser med de här filtren.' : 'Inga poänghändelser än i omgång ' + esc(n) + '.') + '</p>')) +
+      '<p class="small muted" style="margin:8px 0 0"><b>Impact</b> = poängen × din multiplikator minus rivalernas snitt, alltså vad händelsen betyder för dig mot ligan. Bara spelare som något lag i ligan äger visas, och poängen är Fantasy SHL:s officiella utan kapten och kort. Tryck på en spelare för spelarkortet. Nya mål syns efter cirka 1–2 minuter, och statistik som istid och skott kommer lite senare.</p></div>';
+  }
+
   /* ---------- Planering (fullversionen): egen modell, spelbolagsodds och underliggande statistik ---------- */
   // Data från GitHub-jobben: FR_PLAN.base + model.json/season.json (öppen matchstatistik) och FR_PLAN.odds (fullversionens repo).
   // Allt är GET utan inloggning. Hämtas när fliken (eller svårighetsläget i Spelschema) öppnas, högst var 30:e minut.
@@ -3606,6 +3761,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && S.schFltOpen) closeSchDd(); });
   document.addEventListener('change', function (ev) {
     if (ev.target && ev.target.id === 'pnMax') { S.planMax = Number(ev.target.value) || 0; renderPlanner(); }
+    else if (ev.target && ev.target.id === 'feedClub') { S.feedClub = ev.target.value || ''; S.feedShow = FEED_SHOW; renderFeed(); }
     else if (ev.target && ev.target.id === 'pnFwd') { S.planFwd = ev.target.value || 'all'; renderPlanner(); }
     else if (ev.target && ev.target.id === 'pnNotMine') { S.planNotMine = !!ev.target.checked; renderPlanner(); }
   });
@@ -3679,6 +3835,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
           return;
         }
         if (!liveNow()) return;
+        if (S.tab === 'feed') loadFeed({ force: true });
         var round = roundObj(gw), token = S.token;
         loadStatnet();
         apiGet(teamsPath(), teamsParams(round), { fresh: true }).then(function (r) {
@@ -3938,12 +4095,13 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
   /* ---------- Händelser ---------- */
   function selectTab(name) {
     S.tab = name;
-    document.documentElement.classList.toggle('fr-wide', name === 'schedule' || name === 'rivals' || name === 'planner');
+    document.documentElement.classList.toggle('fr-wide', name === 'schedule' || name === 'rivals' || name === 'planner' || name === 'feed');
     Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (x) { x.setAttribute('aria-selected', String(x.getAttribute('data-tab') === name)); });
     Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (x) { x.classList.toggle('hidden', x.id !== 'tab-' + name); });
     if (name === 'upcoming') renderUpcoming();
     if (name === 'schedule') { if (S.schMode === 'd') loadPlan(); renderSchedule(); }
     if (name === 'planner') { loadPlan(); renderPlanner(); }
+    if (name === 'feed') { loadFeed(); renderFeed(); }
     if (name === 'season') { loadSeason(); loadPrev(); renderSeason(); }
     if (name === 'rivals') renderRivals();
     if (name === 'transfers') loadPrev();
@@ -3952,8 +4110,9 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
   }
   $('#cfg').addEventListener('submit', function (ev) { ev.preventDefault(); closeSettings(); start({ team: S.myUc }); });
   $('#reload').addEventListener('click', function () {
-    if (liveAllowed()) { liveRefresh(); loadStatnet(); return; }
-    mem = {}; if (S.league && S.uc) start({ team: S.myUc, round: S.roundNo }); // tabellen och ditt lag; sparade trupper gäller hela veckan (se Inställningar: Hämta om alla lag)
+    if (liveAllowed()) { liveRefresh(); loadStatnet(); }
+    else { mem = {}; if (S.league && S.uc) start({ team: S.myUc, round: S.roundNo }); } // tabellen och ditt lag; sparade trupper gäller hela veckan (se Inställningar: Hämta om alla lag)
+    if (S.tab === 'feed') loadFeed({ force: true }); // efter start(): omstarten avbryter pågående hämtningar
   });
   $('#settingsBtn').addEventListener('click', openSettings);
   $('#refetchAll').addEventListener('click', function () { closeSettings(); mem = {}; if (S.league && S.uc) start({ team: S.myUc, round: S.roundNo, force: true }); });
@@ -4042,6 +4201,12 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
       renderSchedule(); return;
     }
     var sc = ev.target.closest('[data-schedclub]'); if (sc) { var cc = sc.getAttribute('data-schedclub'); S.schedOpen = S.schedOpen || {}; S.schedOpen[cc] = !S.schedOpen[cc]; renderSchedule(); return; }
+    // Händelser (fullversionen)
+    var fd = ev.target.closest('[data-feedf],[data-feedmore]');
+    if (fd) {
+      if (fd.hasAttribute('data-feedmore')) S.feedShow += FEED_SHOW; else { S.feedF = fd.getAttribute('data-feedf'); S.feedShow = FEED_SHOW; }
+      renderFeed(); return;
+    }
     // Planering (fullversionen)
     var pn = ev.target.closest('[data-pnn],[data-pnper],[data-pnsort],[data-pnbs],[data-pnpos],[data-pnpl],[data-schmode]');
     if (pn) {
