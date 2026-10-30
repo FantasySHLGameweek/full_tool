@@ -719,7 +719,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 <aside class="ad-slot" data-slot="footer" aria-label="Annons" hidden></aside>
 <section id="selftest" class="card hidden"></section>
 
-<p class="foot">Fantasy Rinken v2.2.5 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
+<p class="foot">Fantasy Rinken v2.2.6 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
 </main>
 
 <dialog id="shareDlg" class="sharedlg">
@@ -976,6 +976,12 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
   // paid = Fantasy SHL:s eget avdrag i poäng (paid_transfer_points). Det tar hänsyn till sparade byten
   // (ett fritt byte per omgång, oanvända sparas, högst två) och coachkortet Fria byten. Saknas det: 10 p per byte utöver ett.
   // Poäng null = okänt; då blir summan okänd (unknown > 0) men känd del räknas ändå.
+  // Avdraget för omgångens byten. Fantasy SHL:s siffra går först. Saknas den är bara det säkra känt: ett byte eller kortet Fria byten kostar aldrig något.
+  // Fler byten går inte att gissa: antalet fria byten beror på tidigare omgångar (oanvända sparas, högst 2; omgången efter Fria byten har 2). null = okänt än.
+  function transferPenalty(nIn, free, paid) {
+    if (paid != null && isFinite(paid)) return Math.abs(Number(paid));
+    return free || nIn <= 1 ? 0 : null;
+  }
   function transferGain(inPts, outPts, extra, paid) {
     var sum = function (a) { return a.reduce(function (s, v) { return s + (v == null ? 0 : v); }, 0); };
     var gain = sum(inPts) - sum(outPts), penalty = paid != null && isFinite(paid) ? Math.abs(Number(paid)) : 10 * (extra || 0);
@@ -1505,6 +1511,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
     t('säsongskort: förbrukat, aktiverat inför nästa och kvar', [scBy.TOP_TEAM, scBy.JUNIORS, scBy.ATTACK, scBy.VETERANS, scBy.DEFENSE], ['used1', 'next3', 'left', 'used', 'left']);
     t('säsongskort: is_active i nästa omgång räknas som aktiverat', seasonCards([], [{ short_name: 'DEFENSE', is_active: true, is_available: true }], 3).filter(function (c) { return c.code === 'DEFENSE'; })[0].state, 'next');
     var tg = transferGain([12, 3], [4, 5], 1);
+    t('byten: två byten efter Fria byten = officiellt 0, inget avdrag gissas', [transferPenalty(2, false, 0), transferPenalty(2, false, null), transferPenalty(1, false, null), transferPenalty(9, true, null), transferPenalty(3, false, 10)], [0, null, 0, 0, 10]);
     var tgp = transferGain([8, 4], [2, 1], 1, 0);
     t('bytesvinst: sparat byte (Fantasy SHL: inget avdrag) går före regeln', [tgp.penalty, tgp.net], [0, 9]);
     t('bytesvinst: officiellt avdrag 10 vid tre byten med ett sparat', transferGain([5, 5, 5], [1, 1, 1], 2, 10).penalty, 10);
@@ -1928,7 +1935,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 
   var FSL = { SCORING: SCORING, breakdownRows: breakdownRows, mergeOfficial: mergeOfficial, snIndex: snIndex, snLookup: snLookup, mmss: mmss, qrMatrix: qrMatrix, qrSvg: qrSvg, stripSensitive: stripSensitive, CARDS: CARDS, normCard: normCard, activeCard: activeCard, usedCards: usedCards, seasonCards: seasonCards, flattenLineup: flattenLineup,
     posClass: posClass, ageAt: ageAt, computeMultiplier: computeMultiplier, effectiveMultiplier: effectiveMultiplier, basePoints: basePoints,
-    prepareTeam: prepareTeam, inferCard: inferCard, transfersDiff: transfersDiff, transferGain: transferGain, pickMyTeam: pickMyTeam, ownership: ownership, impact: impact, rivalPlayers: rivalPlayers, weekHighlights: weekHighlights, multReason: multReason, feedSlim: feedSlim, feedRows: feedRows, matchProbs: matchProbs, modelGame: modelGame, blendOdds: blendOdds, planSide: planSide, gkPoints: gkPoints, fdr: fdr, expPoints: expPoints, fold: fold, squadPolicy: squadPolicy, ageTag: ageTag, priceTier: priceTier, chooseLeague: chooseLeague, rivalCompare: rivalCompare,
+    prepareTeam: prepareTeam, inferCard: inferCard, transfersDiff: transfersDiff, transferGain: transferGain, transferPenalty: transferPenalty, pickMyTeam: pickMyTeam, ownership: ownership, impact: impact, rivalPlayers: rivalPlayers, weekHighlights: weekHighlights, multReason: multReason, feedSlim: feedSlim, feedRows: feedRows, matchProbs: matchProbs, modelGame: modelGame, blendOdds: blendOdds, planSide: planSide, gkPoints: gkPoints, fdr: fdr, expPoints: expPoints, fold: fold, squadPolicy: squadPolicy, ageTag: ageTag, priceTier: priceTier, chooseLeague: chooseLeague, rivalCompare: rivalCompare,
     parseShare: parseShare, parseAnyInput: parseAnyInput, buildShareQuery: buildShareQuery, customLeagues: customLeagues, searchTeams: searchTeams, MAX_LEAGUE_TEAMS: MAX_LEAGUE_TEAMS, makeDemo: makeDemo, selftest: selftest };
   root.FSL = FSL;
   if (typeof module !== 'undefined' && module.exports) module.exports = FSL;
@@ -2606,7 +2613,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
       function stepLu() {
         while (true) {
           if (token !== S.token) return;
-          if (i >= total) return stepPu();
+          if (i >= total) return stepTr(); // avdragen först: Byten ska inte behöva vänta på coachkorten
           var uc = order[i++], key = rParams(S.roundNo, uc);
           var fin = processed ? cacheFinal(LU_PATH, key) : null, any = cacheGet(LU_PATH, key);
           if (fin && !lineupHasValue(fin)) fin = null; // saknar pris (sparad före 2.1.2): hämtas om en gång
@@ -2629,7 +2636,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
       function stepPu() {
         if (token !== S.token) return;
         if (!needPu) needPu = order.filter(function (uc) { var e = S.entries[uc]; return e && e.status === 'ok' && !cacheGet(PU_PATH, rParams(S.roundNo, uc)); });
-        if (j >= needPu.length) return stepTr();
+        if (j >= needPu.length) return done();
         var uc = needPu[j++];
         setStatus('Alla lag klara. Hämtar coachkort ' + j + ' av ' + needPu.length + ' i bakgrunden…', 0.85 + 0.15 * j / needPu.length);
         return apiGet(PU_PATH, rParams(S.roundNo, uc), { persist: true }).then(function (rp) {
@@ -2648,9 +2655,9 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
       function stepTr() {
         if (token !== S.token) return;
         if (!needTr) needTr = order.filter(function (uc) { var e = S.entries[uc]; return e && e.status === 'ok' && e.paid == null; });
-        if (k2 >= needTr.length) return done();
+        if (k2 >= needTr.length) return stepPu();
         var uc = needTr[k2++];
-        setStatus('Hämtar byten ' + k2 + ' av ' + needTr.length + ' i bakgrunden…', 0.9 + 0.1 * k2 / needTr.length);
+        setStatus('Hämtar byten ' + k2 + ' av ' + needTr.length + ' i bakgrunden…', 0.85 + 0.15 * k2 / needTr.length);
         return apiGet(GR_PATH, rParams(S.roundNo, uc), { persist: true, slim: slimGr }).then(function () {
           if (token !== S.token) return;
           attachTr(S.entries[uc], S.roundNo); scheduleRender();
@@ -2749,9 +2756,9 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
     if (!cur || cur.status !== 'ok' || !prev) return null;
     var d = FSL.transfersDiff(prev.status === 'ok' ? prev.players : [], cur.players);
     if (d.newCoach || !d.in.length) return null;
-    var free = cur.card && cur.card.code === 'FREE_EXCHANGE', paid = cur.paid;
-    var extra = paid != null ? Math.round(paid / 10) : free ? 0 : Math.max(0, d.in.length - 1);
-    var g = FSL.transferGain(d.in.map(weekPts), d.out.map(weekPts), extra, paid);
+    var free = cur.card && cur.card.code === 'FREE_EXCHANGE', pen = FSL.transferPenalty(d.in.length, free, cur.paid);
+    if (pen == null) return null; // avdraget är inte känt än: rangordnas inte
+    var g = FSL.transferGain(d.in.map(weekPts), d.out.map(weekPts), 0, pen);
     return g.unknown ? null : g.net;
   }
   function benchOf(e) {
@@ -3190,29 +3197,28 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
       if (d.partial) approx = true;
       if (d.newCoach) return '<div class="minirow" style="display:block">' + head + '<span class="small muted">ny coach</span></div></div>';
       var free = cur.card && cur.card.code === 'FREE_EXCHANGE';
-      var extra = free ? 0 : Math.max(0, d.in.length - 1), paid = cur.paid; // paid: Fantasy SHL:s avdrag (räknar sparade byten)
-      if (paid != null) extra = Math.round(paid / 10);
-      var saved = !free && paid != null && d.in.length > 1 && paid < 10 * (d.in.length - 1); // Fantasy SHL drog mindre än "1 fritt byte": sparade byten användes
-      var badge = d.in.length ? '<span class="chip' + (free ? ' card' : '') + '">' + d.in.length + ' byte' + (d.in.length > 1 ? 'n' : '') + (free ? ' · Fria byten' : (paid != null ? paid : 10 * extra) ? ' · <span class="neg">−' + (paid != null ? paid : 10 * extra) + ' p</span>' : '') + (saved ? ' · sparat byte' : '') + '</span>' : '<span class="small muted">inga byten</span>';
+      var paid = cur.paid, pen = FSL.transferPenalty(d.in.length, free, paid); // Fantasy SHL:s avdrag; null = inte känt än (gissas aldrig)
+      var saved = !free && paid != null && d.in.length > 1 && paid < 10 * (d.in.length - 1); // Fantasy SHL drog mindre än "1 fritt byte": sparade byten eller omgången efter Fria byten
+      var badge = d.in.length ? '<span class="chip' + (free ? ' card' : '') + '">' + d.in.length + ' byte' + (d.in.length > 1 ? 'n' : '') + (free ? ' · Fria byten' : pen == null ? ' · <span class="muted">avdrag hämtas…</span>' : pen ? ' · <span class="neg">−' + pen + ' p</span>' : '') + (saved ? ' · extra fritt byte' : '') + '</span>' : '<span class="small muted">inga byten</span>';
       if (!d.in.length && !d.out.length) return '<div class="minirow" style="display:block' + (t.user_code === S.myUc ? ';background:#a9c3ec12' : '') + '">' + head + badge + '</div></div>';
       if (!S.demo && Number((roundObj(S.roundNo) || {}).points_processed) === 1) queueOfficial(d.in.concat(d.out)); // pågående omgång: Statnet räcker (inga anrop per spelare)
       var inP = d.in.map(weekPts), outP = d.out.map(weekPts);
-      var g = FSL.transferGain(inP, outP, extra, paid);
-      if (paid == null && !free && d.in.length > 1) approxPen = true;
+      var g = FSL.transferGain(inP, outP, 0, pen || 0);
+      if (pen == null) approxPen = true;
       var sg = function (v) { return (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v) + ' p'; };
       var cls = function (v) { return v > 0 ? 'pos' : v < 0 ? 'neg' : 'muted'; };
       var pt = function (v) { return '<span class="tp">' + (v != null ? v + ' p' : S.snState === 'loading' ? '<span class="spin sm"></span>' : '–') + '</span>'; };
       var sum = '<div class="trf-sum"><span>Poäng in − ut: <b class="' + (g.unknown ? 'muted' : cls(g.gain)) + '">' + (g.unknown ? '?' : sg(g.gain)) + '</b>' +
         (g.penalty ? ' · Avdrag: <b class="neg">−' + g.penalty + ' p</b>' : '') + '</span>' +
-        '<span>Netto <b class="trf-net ' + (g.unknown ? 'muted' : cls(g.net)) + '">' + (g.unknown ? (S.snState === 'loading' ? '<span class="small">statistiken hämtas…</span>' : '–') : sg(g.net)) + '</b></span></div>';
+        '<span>Netto' + (pen == null ? ' <span class="small muted">(före avdrag)</span>' : '') + ' <b class="trf-net ' + (g.unknown ? 'muted' : cls(g.net)) + '">' + (g.unknown ? (S.snState === 'loading' ? '<span class="small">statistiken hämtas…</span>' : '–') : sg(g.net)) + '</b></span></div>';
       return '<div class="minirow" style="display:block' + (t.user_code === S.myUc ? ';background:#a9c3ec12' : '') + '">' + head + badge + '</div>' +
         '<div class="trf"><div>' + d.in.map(function (p, i) { return '<div class="in">▲ ' + plBtn(p) + ageBadge(p, 'agetxt') + pt(inP[i]) + '</div>'; }).join('') + '</div><div>' +
         d.out.map(function (p, i) { return '<div class="out">▼ ' + plBtn(p) + ageBadge(p, 'agetxt') + pt(outP[i]) + '</div>'; }).join('') + '</div></div>' + sum + '</div>';
     }).join('');
     el.innerHTML = '<div class="card"><h2>Byten inför omgång ' + S.roundNo + '</h2><p class="small muted">Hela truppen (15 inkl. bänk) i omgång ' + prevNo + ' mot ' + S.roundNo + '. Flytt mellan bänk och kedja räknas inte. ' +
-      'Poängen är spelarnas grundpoäng i omgång ' + S.roundNo + ' (utan kapten/kort). Netto = inbytta − utbytta − avdrag. Avdraget är Fantasy SHL:s eget: ett fritt byte per omgång, oanvända byten sparas (högst två), därefter 10 p per byte. Tryck på en spelare för veckans statistik.</p>' +
+      'Poängen är spelarnas grundpoäng i omgång ' + S.roundNo + ' (utan kapten/kort). Netto = inbytta − utbytta − avdrag. Avdraget är Fantasy SHL:s eget: ett fritt byte per omgång, oanvända byten sparas (högst två), omgången efter kortet Fria byten har två fria byten, därefter 10 p per byte. Tryck på en spelare för veckans statistik.</p>' +
       (approx ? '<div class="warn small">Ungefärligt: minst en trupp saknade spelare i svaret.</div>' : '') +
-      (approxPen ? '<div class="warn small">Avdraget för några lag hämtas från Fantasy SHL – tills dess visas en uppskattning (1 fritt byte, sparade byten ej medräknade).</div>' : '') +
+      (approxPen ? '<div class="warn small">Avdraget för några lag hämtas från Fantasy SHL och visas när det är klart. Dröjer det, tryck ⟳ Uppdatera.</div>' : '') +
       (S.snState === 'none' && !S.sn ? '<div class="warn small">Statistiken från Statnet gick inte att hämta, så utbytta spelare som ingen i ligan äger kan inte jämföras (visas som –). ' + (PROXY ? 'Försök igen med ⟳ Uppdatera.' : 'Webbsidans data/statnet.json saknas – se LÄSMIG avsnitt 8.') + '</div>' : '') + cards + '</div>';
   }
   // Spelarens grundpoäng i visad omgång: Statnet i första hand, annars Fantasy SHL:s poäng hos någon som äger spelaren.
