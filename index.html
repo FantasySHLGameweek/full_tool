@@ -719,7 +719,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 <aside class="ad-slot" data-slot="footer" aria-label="Annons" hidden></aside>
 <section id="selftest" class="card hidden"></section>
 
-<p class="foot">Fantasy Rinken v2.2.4 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
+<p class="foot">Fantasy Rinken v2.2.5 · Verktyget visualiserar ditt Fantasy SHL-lags insamlade poäng, bonusar och statistik för att ge dig en tydlig och smidig översikt över hur dina spelare presterar. Statistik: Statnet AB via shl.se. Inga inloggningar eller cookies. · <a href="https://fantasyrinken.se/integritet.html">Integritet och kontakt</a></p>
 </main>
 
 <dialog id="shareDlg" class="sharedlg">
@@ -893,6 +893,17 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
   }
   function ageTag(age) { return age == null || !isFinite(age) ? '' : age <= 20 ? 'JR' : age >= 33 ? 'VT' : ''; }
 
+  // Varför spelaren har sin multiplikator hos ett lag (kapten och kort staplas inte). card = kortets namn eller tomt.
+  function multReason(role, group, eff, card) {
+    if (group === 'BENCH' && !eff) return '';
+    if (!eff) return card ? 'utanför kortet ' + card : '';
+    if (eff >= 2) {
+      if (role === 'C') return 'kapten' + (card ? ' (kort: ' + card + ')' : '');
+      if (card) return 'kort: ' + card;
+      return role === 'VC' ? 'ass. kapten' : 'kort';
+    }
+    return role === 'VC' ? 'ass. kapten' : role === 'C' ? 'kapten' : 'ordinarie';
+  }
   // Egen beräkning, används bara när API:ts multiplier saknas.
   function computeMultiplier(p, card, ref) {
     if (p.group === 'BENCH') return 0;
@@ -1527,6 +1538,8 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
     t('höjdpunkter: bäst med delad plats', [wh.best.value, wh.best.teams], [50, ['A', 'C']]);
     t('höjdpunkter: sämst, lyft, tapp', [wh.worst.teams, wh.rise.value, wh.fall.teams], [['B'], 2, ['B']]);
     t('höjdpunkter: bänk, avdrag, bästa byte', [wh.bench.teams, wh.penalty.value, wh.transfer.teams], [['A', 'B'], 20, ['A']]);
+    t('orsak till multiplikator: kapten, kort, ordinarie, bänk, utanför kortet', [multReason('C', 'L1', 2, ''), multReason(null, 'L1', 2, 'Toppa laget'), multReason('C', 'L1', 2, 'Anfall'), multReason(null, 'GK', 1, ''), multReason(null, 'BENCH', 0, ''), multReason(null, 'L2', 0, 'Toppa laget')],
+      ['kapten', 'kort: Toppa laget', 'kapten (kort: Anfall)', 'ordinarie', '', 'utanför kortet Toppa laget']);
     // Händelser: bara ägda spelare, borttagna rader och 0 p bort, Impact-tecken, sortering, svenska namn
     t('händelser: borttagen rad och 0 p tas bort', [feedSlim({ deleted_at: 'x', points: 4 }), feedSlim({ points: '0' }), feedSlim({ id: 1, points: '4', stat_type: { abbreviation: 'GF' } }).v], [null, null, 4]);
     var fe = [E('me', [[1, 2, 5], [2, 1, 3]]), E('a', [[1, 1, 5], [3, 2, 4]]), E('b', [[3, 1, 4]])];
@@ -1915,7 +1928,7 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
 
   var FSL = { SCORING: SCORING, breakdownRows: breakdownRows, mergeOfficial: mergeOfficial, snIndex: snIndex, snLookup: snLookup, mmss: mmss, qrMatrix: qrMatrix, qrSvg: qrSvg, stripSensitive: stripSensitive, CARDS: CARDS, normCard: normCard, activeCard: activeCard, usedCards: usedCards, seasonCards: seasonCards, flattenLineup: flattenLineup,
     posClass: posClass, ageAt: ageAt, computeMultiplier: computeMultiplier, effectiveMultiplier: effectiveMultiplier, basePoints: basePoints,
-    prepareTeam: prepareTeam, inferCard: inferCard, transfersDiff: transfersDiff, transferGain: transferGain, pickMyTeam: pickMyTeam, ownership: ownership, impact: impact, rivalPlayers: rivalPlayers, weekHighlights: weekHighlights, feedSlim: feedSlim, feedRows: feedRows, matchProbs: matchProbs, modelGame: modelGame, blendOdds: blendOdds, planSide: planSide, gkPoints: gkPoints, fdr: fdr, expPoints: expPoints, fold: fold, squadPolicy: squadPolicy, ageTag: ageTag, priceTier: priceTier, chooseLeague: chooseLeague, rivalCompare: rivalCompare,
+    prepareTeam: prepareTeam, inferCard: inferCard, transfersDiff: transfersDiff, transferGain: transferGain, pickMyTeam: pickMyTeam, ownership: ownership, impact: impact, rivalPlayers: rivalPlayers, weekHighlights: weekHighlights, multReason: multReason, feedSlim: feedSlim, feedRows: feedRows, matchProbs: matchProbs, modelGame: modelGame, blendOdds: blendOdds, planSide: planSide, gkPoints: gkPoints, fdr: fdr, expPoints: expPoints, fold: fold, squadPolicy: squadPolicy, ageTag: ageTag, priceTier: priceTier, chooseLeague: chooseLeague, rivalCompare: rivalCompare,
     parseShare: parseShare, parseAnyInput: parseAnyInput, buildShareQuery: buildShareQuery, customLeagues: customLeagues, searchTeams: searchTeams, MAX_LEAGUE_TEAMS: MAX_LEAGUE_TEAMS, makeDemo: makeDemo, selftest: selftest };
   root.FSL = FSL;
   if (typeof module !== 'undefined' && module.exports) module.exports = FSL;
@@ -3986,7 +3999,12 @@ html.fr-modal,html.fr-modal body{overflow:hidden}
     $('#ownersBody').innerHTML = '<h3 style="margin:10px 0 6px">Poäng omgång ' + esc(S.roundNo) + '</h3>' + body +
       planUnder(any.name, any.club_id) + upcomingFor(any.club_id) +
       '<h3 style="margin:16px 0 6px">Ägs av ' + own.length + ' av ' + (S.teams.length || list.length) + ' lag i ligan</h3>' + (list.length < S.teams.length ? '<p class="small muted">' + (S.teams.length - list.length) + ' lag hämtas fortfarande.</p>' : '') +
-      own.map(function (o) { return '<div class="minirow"' + (o.uc === S.myUc ? ' style="background:#a9c3ec12"' : '') + '><div class="who"><b>' + esc(o.name) + '</b><div class="meta">' + GROUP_LABEL[o.group] + (o.role === 'C' ? ' · kapten' : o.role === 'VC' ? ' · ass. kapten' : '') + '</div></div><div class="val">' + (o.group === 'BENCH' ? '–' : '×' + o.eff) + '</div></div>'; }).join('');
+      own.slice().sort(function (a, b) { return ((teamOf(a.uc) || {}).rank || 999) - ((teamOf(b.uc) || {}).rank || 999); }).map(function (o) {
+        var t = teamOf(o.uc) || {}, e = S.entries[o.uc], owner = [t.first_name, t.last_name].filter(Boolean).join(' ');
+        var why = FSL.multReason(o.role, o.group, o.eff, e && e.card ? e.card.name : '');
+        return '<div class="minirow"' + (o.uc === S.myUc ? ' style="background:#a9c3ec12"' : '') + '><div class="who"><b>' + (t.rank ? esc(t.rank) + '. ' : '') + esc(o.name) + '</b>' + (owner ? ' <span class="owner">(' + esc(owner) + ')</span>' : '') +
+          '<div class="meta">' + GROUP_LABEL[o.group] + (why ? ' · ' + esc(why) : '') + '</div></div><div class="val">' + (o.group === 'BENCH' && !o.eff ? '–' : '×' + o.eff) + '</div></div>';
+      }).join('');
     var d = $('#owners'); if (!d.open) { $('#ownersBody').scrollTop = 0; openDlg(d); }
   }
   // Spelarrutan: klubbens matcher i de närmaste 3 olåsta omgångarna (ur spelschemat, inga nya anrop).
