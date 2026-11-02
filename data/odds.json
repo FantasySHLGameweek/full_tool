@@ -1,1 +1,1 @@
-{"version":1,"available":false,"updated":"2026-11-01T20:26:17Z","reason":"oddstjänsten listar ingen SHL","swedish":["soccer_sweden_allsvenskan","soccer_sweden_superettan"]}
+{"version":1,"available":true,"updated":"2026-11-02T16:58:50Z","sport":"icehockey_sweden_hockey_league","games":[{"start":"2026-11-12T18:00:00Z","home":"VLH","away":"TIK","books":5,"pH":0.4966,"pOT":0.223,"pA":0.2804,"winH":0.6203,"winA":0.3797,"total":5.05}]}
